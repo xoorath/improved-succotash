@@ -49,6 +49,15 @@ extern "C" {
 	 * window cannot be shown once closed.
 	 */
 	void eng_WindowClose(struct eng_Window* window);
+
+	/**
+	 * Window Update
+	 *
+	 * This function should be called regularly for all windows, allowing the
+	 * window to process messages.
+	 * @returns true if at least one window is not in a closing state.
+	 */
+	bool eng_WindowUpdate(struct eng_Window* window, unsigned windowCount);
 	
 	/** @returns Currently set window title. */
 	const char* eng_WindowGetTitle(struct eng_Window* window);

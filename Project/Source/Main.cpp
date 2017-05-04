@@ -1,8 +1,15 @@
+#include <crtdbg.h>
+#include <Windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <Engine/Window.h>
+#include <Engine/Log.h>
 #include <Engine/Stopwatch.h>
+#include <Engine/Window.h>
+
+#if defined(_MSC_VER)
+#define VISUAL_STUDIO_LEAK_DETECTION 1
+#endif
 
 class CoreSystemAllocator {
 	static constexpr unsigned CoreSystemMemorySize = 1024;
@@ -27,29 +34,50 @@ struct eng_Stopwatch;
 
 void OnWindowClose(void*) 
 {
-	printf("Window Close Detected");
+	eng_Log("Window Close Detected\n");
 }
 
 int main(int argsc, char** argsv) {
+#ifdef VISUAL_STUDIO_LEAK_DETECTION
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
 	////////////////////////////////////////////////////////////////////////// Setup
 	CoreSystemAllocator allocator;
 
 	eng_Stopwatch* stopwatch = allocator.Malloc<eng_Stopwatch*>(eng_StopwatchGetSizeof());
 	eng_Window* window = allocator.Malloc<eng_Window*>(eng_WindowGetSizeof());
 
-
 	eng_StopwatchInit(stopwatch);
+	
+	////////////////////////////////////////////////////////////////////////// Setup
 	eng_StopwatchStart(stopwatch);
-	////////////////////////////////////////////////////////////////////////// Run
+
 	if (eng_WindowInit(window, 1280, 720, "Improved Succotash"))
 	{
-		eng_OnCloseBind(window, [](void*) { printf("Window closed."); }, nullptr);
+		eng_OnCloseBind(window, OnWindowClose, nullptr);
 	}
 
-	
-	////////////////////////////////////////////////////////////////////////// Cleanup
 	eng_StopwatchStop(stopwatch);
-	printf("Window setup took %f seconds.", eng_StopwatchGetSeconds(stopwatch));
+	eng_Log("Application setup took %f seconds.\n", eng_StopwatchGetSeconds(stopwatch));
+
+	////////////////////////////////////////////////////////////////////////// Run
+	eng_StopwatchStart(stopwatch);
+	while (eng_WindowUpdate(window, 1)) {
+
+	}
+	eng_StopwatchStop(stopwatch);
+	double s = eng_StopwatchGetSeconds(stopwatch);
+	double m = eng_StopwatchGetMinutes(stopwatch);
+	if (s < 60)
+	{
+		eng_Log("Application ran for %f seconds.\n", s);
+	}
+	else
+	{
+		eng_Log("Application ran for %f minutes.\n", m);
+	}
+
+	////////////////////////////////////////////////////////////////////////// Cleanup
 
 	eng_StopwatchFree(stopwatch, true);
 	eng_WindowFree(window, true);

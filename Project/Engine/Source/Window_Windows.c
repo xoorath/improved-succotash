@@ -93,6 +93,20 @@ bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, 
 		return false;
 	}
 
+	bool globalWindowAssigned = false;
+	for (unsigned i = 0; i < WINDOWS_MAX; ++i) {
+		if (g_all_windows[i] == NULL) {
+			g_all_windows[i] = window;
+			globalWindowAssigned = true;
+			break;
+		}
+	}
+	if (!globalWindowAssigned)
+	{
+		eng_WindowLogFatal("Maximum number of windows exceded. The max is currently set at %d.", WINDOWS_MAX);
+		return false;
+	}
+
 	memset(window, 0, sizeof(struct eng_Window));
 
 	window->Width = width;
@@ -100,16 +114,65 @@ bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, 
 	window->Title = malloc(strlen(title) + 1);
 	strcpy(window->Title, title);
 
-	DWORD style, style_ex;
+	DWORD style, styleEx;
 	style = WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-	style_ex = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
+	styleEx = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 
-	if ((window->Hinstance = GetModuleHandle(NULL)) == false)
+	if ((window->Hinstance = GetModuleHandle(NULL)) == 0)
 	{
-		eng_WindowLogFatal("GetModuleHandle returned false.");
+		eng_WindowLogFatal("GetModuleHandle failed.");
 		return false;
 	}
 
+	WNDCLASSEX wc;
+	wc.cbSize = sizeof(WNDCLASSEX);
+	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+	wc.lpfnWndProc = (WNDPROC)eng_Wndproc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hInstance = window->Hinstance;
+	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wc.hIconSm = NULL;
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = NULL;  // No brush - we are going to paint our own background
+	wc.lpszMenuName = NULL;  // No default menu
+	wc.lpszClassName = L"game";
+	if (RegisterClassEx(&wc) == 0)
+	{
+		eng_WindowLogFatal("RegisterClassEx failed.");
+		return false;
+	}
+
+	HWND hwndDesktop = GetDesktopWindow();
+	RECT desktop;
+	GetWindowRect(hwndDesktop, &desktop);
+
+	int x = desktop.right / 2 - width / 2,
+		y = desktop.bottom / 2 - height / 2;
+
+	RECT sysRect = { x, y, width, height };
+
+	AdjustWindowRectEx(&sysRect, style, FALSE, styleEx);
+
+	window->Hwnd = CreateWindowEx(styleEx, L"game", L"game", style, x, y, width, height, NULL, NULL, window->Hinstance, NULL);
+	if (window->Hwnd == 0)
+	{
+		eng_WindowLogFatal("CreateWindowEx failed.");
+		return false;
+	}
+
+	window->Hdc = GetDC(window->Hwnd);
+	if (window->Hdc == 0)
+	{
+		eng_WindowLogFatal("GetDC failed.");
+		return false;
+	}
+
+	// return value is not referring to success/failure. Don't use ensure here.
+	// see: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
+	ShowWindow(window->Hwnd, SW_SHOW);
+
+	
 
 	return true;
 }
@@ -137,6 +200,23 @@ void eng_WindowClose(struct eng_Window* window)
 
 		eng_WindowCallbackExec(window->OnClose, window->OnCloseCount);
 	}
+}
+
+bool eng_WindowUpdate(struct eng_Window* window, unsigned windowCount)
+{
+	MSG msg;
+	unsigned livingWindows = windowCount;
+	for (unsigned i = 0; i < windowCount; ++i)
+	{
+		while (PeekMessage(&msg, window[i].Hwnd, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		if (window[i].Closing) {
+			--livingWindows;
+		}
+	}
+	return livingWindows > 0;
 }
 
 const char* eng_WindowGetTitle(struct eng_Window* window)
