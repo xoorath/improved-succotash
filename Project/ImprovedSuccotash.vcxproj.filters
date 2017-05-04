@@ -1,23 +1,34 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Source\Main.cpp" />
-    <ClCompile Include="Engine\Source\Window_Windows.c">
-      <Filter>Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Source\Stopwatch_Windows.c">
-      <Filter>Engine</Filter>
+    <ClCompile Include="Engine\Source\Graphics_Vulkan.c">
+      <Filter>Engine\Source</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Source\Log.c">
-      <Filter>Engine</Filter>
+      <Filter>Engine\Source</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\Source\Graphics_Vulkan.c">
-      <Filter>Engine</Filter>
+    <ClCompile Include="Engine\Source\Stopwatch_Windows.c">
+      <Filter>Engine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Source\Window_Windows.c">
+      <Filter>Engine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Main.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Source\Url.c">
+      <Filter>Engine\Source</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
       <UniqueIdentifier>{3759f972-b6e9-4088-a0a1-29c02192b869}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Source">
+      <UniqueIdentifier>{7a4ccd60-9e8f-4997-8811-28edc5678230}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{ae0a3e22-ad6f-4be4-bf6d-d565b2422753}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -31,6 +42,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Graphics_Vulkan.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Url.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

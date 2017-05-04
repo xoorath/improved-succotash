@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <Engine/Graphics_Vulkan.h>
 #include <Engine/Log.h>
 #include <Engine/Stopwatch.h>
+#include <Engine/Url.h>
 #include <Engine/Window.h>
 
 #if defined(_MSC_VER)
@@ -41,21 +43,35 @@ int main(int argsc, char** argsv) {
 #ifdef VISUAL_STUDIO_LEAK_DETECTION
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
+	int exitCode = 0;
 	////////////////////////////////////////////////////////////////////////// Setup
 	CoreSystemAllocator allocator;
 
 	eng_Stopwatch* stopwatch = allocator.Malloc<eng_Stopwatch*>(eng_StopwatchGetSizeof());
 	eng_Window* window = allocator.Malloc<eng_Window*>(eng_WindowGetSizeof());
 
-	eng_StopwatchInit(stopwatch);
+	auto GracefullyExit = [&] (int exitCode)
+	{
+		eng_StopwatchFree(stopwatch, true);
+		eng_WindowFree(window, true);
+		eng_UrlGlobalShutdown();
+		exit(exitCode);
+	};
 	
 	////////////////////////////////////////////////////////////////////////// Setup
+	eng_StopwatchInit(stopwatch);
 	eng_StopwatchStart(stopwatch);
 
-	if (eng_WindowInit(window, 1280, 720, "Improved Succotash"))
+	if (!eng_Ensure(eng_UrlGlobalInit(), "Url global initialization failed."))
 	{
-		eng_OnCloseBind(window, OnWindowClose, nullptr);
+		GracefullyExit(-1);
 	}
+
+	if (!eng_Ensure(eng_WindowInit(window, 1280, 720, "Improved Succotash"), "Application window failed to initialize."))
+	{
+		GracefullyExit(-1);
+	}
+	eng_OnCloseBind(window, OnWindowClose, nullptr);
 
 	eng_StopwatchStop(stopwatch);
 	eng_Log("Application setup took %f seconds.\n", eng_StopwatchGetSeconds(stopwatch));
@@ -78,10 +94,5 @@ int main(int argsc, char** argsv) {
 	}
 
 	////////////////////////////////////////////////////////////////////////// Cleanup
-
-	eng_StopwatchFree(stopwatch, true);
-	eng_WindowFree(window, true);
-	window = nullptr;
-
-	return 0;
+	GracefullyExit(0);
 }
