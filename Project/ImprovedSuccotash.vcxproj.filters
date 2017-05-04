@@ -11,6 +11,9 @@
     <ClCompile Include="Engine\Source\Log.c">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\Source\Graphics_Vulkan.c">
+      <Filter>Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -25,6 +28,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Log.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics_Vulkan.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

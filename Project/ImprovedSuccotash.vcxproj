@@ -258,12 +258,14 @@
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\Source\Graphics_Vulkan.c" />
     <ClCompile Include="Engine\Source\Log.c" />
     <ClCompile Include="Engine\Source\Stopwatch_Windows.c" />
     <ClCompile Include="Engine\Source\Window_Windows.c" />
     <ClCompile Include="Source\Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\Graphics_Vulkan.h" />
     <ClInclude Include="Engine\Log.h" />
     <ClInclude Include="Engine\Stopwatch.h" />
     <ClInclude Include="Engine\Window.h" />
