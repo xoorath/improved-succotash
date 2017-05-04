@@ -2,6 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <Engine/Window.h>
+#include <Engine/Log.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,8 +14,6 @@
 #include <shellapi.h>
 
 #pragma comment(lib,"user32.lib")
-
-#define eng_WindowLogFatal(fmt, ...) printf("[eng_Window] FATAL " fmt, __VA_ARGS__)
 
 #if defined(GAME_MOBILE) || defined(GAME_CONSOLE)
 #define WINDOWS_MAX 1
@@ -101,9 +100,8 @@ bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, 
 			break;
 		}
 	}
-	if (!globalWindowAssigned)
+	if (!eng_Ensure(globalWindowAssigned, "Maximum number of windows exceded. The max is currently set at %d.", WINDOWS_MAX))
 	{
-		eng_WindowLogFatal("Maximum number of windows exceded. The max is currently set at %d.", WINDOWS_MAX);
 		return false;
 	}
 
@@ -118,9 +116,9 @@ bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, 
 	style = WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
 	styleEx = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 
-	if ((window->Hinstance = GetModuleHandle(NULL)) == 0)
+	window->Hinstance = GetModuleHandle(NULL);
+	if (!eng_Ensure(window->Hinstance != 0, "GetModuleHandle failed."))
 	{
-		eng_WindowLogFatal("GetModuleHandle failed.");
 		return false;
 	}
 
@@ -137,9 +135,8 @@ bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, 
 	wc.hbrBackground = NULL;  // No brush - we are going to paint our own background
 	wc.lpszMenuName = NULL;  // No default menu
 	wc.lpszClassName = L"game";
-	if (RegisterClassEx(&wc) == 0)
+	if (!eng_Ensure(RegisterClassEx(&wc) != 0, "RegisterClassEx failed."))
 	{
-		eng_WindowLogFatal("RegisterClassEx failed.");
 		return false;
 	}
 
@@ -155,24 +152,20 @@ bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, 
 	AdjustWindowRectEx(&sysRect, style, FALSE, styleEx);
 
 	window->Hwnd = CreateWindowEx(styleEx, L"game", L"game", style, x, y, width, height, NULL, NULL, window->Hinstance, NULL);
-	if (window->Hwnd == 0)
+	if (!eng_Ensure(window->Hwnd != 0, "CreateWindowEx failed."))
 	{
-		eng_WindowLogFatal("CreateWindowEx failed.");
 		return false;
 	}
 
 	window->Hdc = GetDC(window->Hwnd);
-	if (window->Hdc == 0)
+	if (!eng_Ensure(window->Hdc != 0, "GetDC failed."))
 	{
-		eng_WindowLogFatal("GetDC failed.");
 		return false;
 	}
 
 	// return value is not referring to success/failure. Don't use ensure here.
 	// see: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
 	ShowWindow(window->Hwnd, SW_SHOW);
-
-	
 
 	return true;
 }
@@ -191,10 +184,7 @@ void eng_WindowClose(struct eng_Window* window)
 		window->Closing = true;
 		if (window->Hwnd != 0)
 		{
-			if (!CloseWindow(window->Hwnd))
-			{
-				eng_WindowLogFatal("CloseWindow call failed.");
-			}
+			eng_Ensure(CloseWindow(window->Hwnd), "CloseWindow call failed");
 			window->Hwnd = 0;
 		}
 
@@ -266,22 +256,22 @@ bool eng_WindowSetupValidate(struct eng_Window* window, unsigned width, unsigned
 #if !defined(GAME_FINAL)
 	if (window == NULL)
 	{
-		eng_WindowLogFatal("Invalid window");
+		eng_DevFatal("Invalid window");
 		return false;
 	}
 	if (width == 0 || width > 10000)
 	{
-		eng_WindowLogFatal("Invalid width");
+		eng_DevFatal("Invalid width");
 		return false;
 	}
 	if (height == 0 || height > 10000)
 	{
-		eng_WindowLogFatal("Invalid height");
+		eng_DevFatal("Invalid height");
 		return false;
 	}
 	if (title == NULL)
 	{
-		eng_WindowLogFatal("Invalid title.");
+		eng_DevFatal("Invalid title.");
 		return false;
 	}
 #endif
@@ -316,7 +306,6 @@ LRESULT CALLBACK eng_Wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 	}
-	eng_WindowLogFatal("Could not find window with hwnd 0x%p. Falling back to DefWindowProc.", hwnd);
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
