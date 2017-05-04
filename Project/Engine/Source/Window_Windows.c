@@ -12,47 +12,55 @@
 #include <Commdlg.h>
 #include <shellapi.h>
 
-#pragma comment(lib,"user32.lib") 
+#pragma comment(lib,"user32.lib")
 
-struct eng_window_callback
+#define eng_WindowLogFatal(fmt, ...) printf("[eng_Window] FATAL " fmt, __VA_ARGS__)
+
+
+struct eng_WindowCallback
 {
-	void(*func)(void*);
-	void* user_data;
+	void(*Func)(void*);
+	void* UserData;
 };
 
-struct eng_window
+struct eng_Window
 {
 	// display properties
-	unsigned width, height;
-	char* title;
+	unsigned Width, Height;
+	char* Title;
 
 	// handles
-	HWND hwnd;
-	HDC hdc;
-	HINSTANCE hinstance;
+	HWND Hwnd;
+	HDC Hdc;
+	HINSTANCE Hinstance;
 
 	// callbacks
-	struct eng_window_callback* on_close;
-	unsigned on_close_count;
+	struct eng_WindowCallback* OnClose;
+	unsigned OnCloseCount;
 
 	// states
-	bool closing;
+	bool Closing;
 };
 
-struct eng_window* g_all_windows[WINDOWS_MAX] = {0};
+struct eng_Window* g_all_windows[WINDOWS_MAX] = { 0 };
 
-bool eng_window_setup_validate(struct eng_window* window, unsigned width, unsigned height, const char* title);
-LRESULT CALLBACK eng_window_wndproc(struct eng_window* window, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK eng_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+bool eng_WindowSetupValidate(struct eng_Window* window, unsigned width, unsigned height, const char* title);
+LRESULT CALLBACK eng_WindowWndproc(struct eng_Window* window, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK eng_Wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-struct eng_window* eng_window_malloc()
+void eng_WindowCallbackBind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*), void* user_data);
+void eng_WindowCallbackUnbind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*));
+void eng_WindowCallbackExec(struct eng_WindowCallback* callbacks, unsigned callbacksCount);
+
+
+////////////////////////////////////////////////////////////////////////// Lifecycle
+
+struct eng_Window* eng_WindowMalloc()
 {
-	struct eng_window* window = malloc(sizeof(struct eng_window));
-	memset(window, 0, sizeof(struct eng_window));
-	return window;
+	return malloc(sizeof(struct eng_Window));
 }
 
-void eng_window_free(struct eng_window* window)
+void eng_WindowFree(struct eng_Window* window, bool subAllocationsOnly)
 {
 	for (unsigned i = 0; i < WINDOWS_MAX; ++i)
 	{
@@ -65,30 +73,35 @@ void eng_window_free(struct eng_window* window)
 		}
 	}
 
-	free(window->title);
-	free(window->on_close);
-	free(window);
+	free(window->Title);
+	free(window->OnClose);
+	if (!subAllocationsOnly)
+	{
+		free(window);
+	}
 }
 
-bool eng_window_init(struct eng_window* window, unsigned width, unsigned height, const char* title)
+bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, const char* title)
 {
-	if (!eng_window_setup_validate(window, width, height, title))
+	if (!eng_WindowSetupValidate(window, width, height, title))
 	{
 		return false;
 	}
 
-	window->width = width;
-	window->height = height;
-	window->title = malloc(strlen(title) + 1);
-	strcpy(window->title, title);
+	memset(window, 0, sizeof(struct eng_Window));
+
+	window->Width = width;
+	window->Height = height;
+	window->Title = malloc(strlen(title) + 1);
+	strcpy(window->Title, title);
 
 	DWORD style, style_ex;
 	style = WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
 	style_ex = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
 
-	if ((window->hinstance = GetModuleHandle(NULL)) == false)
+	if ((window->Hinstance = GetModuleHandle(NULL)) == false)
 	{
-		printf("[eng_window_init] FAILED. GetModuleHandle returned false.");
+		eng_WindowLogFatal("GetModuleHandle returned false.");
 		return false;
 	}
 
@@ -96,119 +109,127 @@ bool eng_window_init(struct eng_window* window, unsigned width, unsigned height,
 	return true;
 }
 
-void eng_window_close(struct eng_window* window)
+unsigned eng_WindowGetSizeof()
 {
-	if (!window->closing)
+	return sizeof(struct eng_Window);
+}
+
+////////////////////////////////////////////////////////////////////////// Window API
+
+void eng_WindowClose(struct eng_Window* window)
+{
+	if (!window->Closing)
 	{
-		window->closing = true;
-		if (window->hwnd != 0)
+		window->Closing = true;
+		if (window->Hwnd != 0)
 		{
-			if (!CloseWindow(window->hwnd))
+			if (!CloseWindow(window->Hwnd))
 			{
-				printf("[eng_window_close] FAILED. CloseWindow call failed.");
+				eng_WindowLogFatal("CloseWindow call failed.");
 			}
-			window->hwnd = 0;
+			window->Hwnd = 0;
 		}
 
-		for (unsigned i = 0; i < window->on_close_count; ++i)
-		{
-			window->on_close[i].func(window->on_close[i].user_data);
-		}
+		eng_WindowCallbackExec(window->OnClose, window->OnCloseCount);
 	}
+}
+
+const char* eng_WindowGetTitle(struct eng_Window* window)
+{
+	return window->Title;
+}
+
+unsigned eng_WindowGetWidth(struct eng_Window* window)
+{
+	return window->Width;
+}
+
+unsigned eng_WindowGetHeight(struct eng_Window* window)
+{
+	return window->Height;
+}
+
+void eng_WindowSetTitle(struct eng_Window* window, const char* title)
+{
+	free(window->Title);
+	window->Title = malloc(strlen(title) + 1);
+	strcpy(window->Title, title);
+}
+
+void eng_WindowSetSize(struct eng_Window* window, unsigned width, unsigned height)
+{
+	window->Width = width;
+	window->Height = height;
 }
 
 ////////////////////////////////////////////////////////////////////////// Callbacks
 
-void eng_bind_onclose(struct eng_window* window, void(*on_close)(void*), void* user_data)
+void eng_OnCloseBind(struct eng_Window* window, void(*on_close)(void*), void* user_data)
 {
-	if (window->on_close == NULL)
-	{
-		window->on_close = malloc(sizeof(struct eng_window_callback));
-		++window->on_close_count;
-	}
-	else
-	{
-		window->on_close = realloc(window->on_close, ++window->on_close_count * sizeof(struct eng_window_callback));
-	}
-	struct eng_window_callback* callback = &window->on_close[window->on_close_count - 1];
-	callback->func = on_close;
-	callback->user_data = user_data;
+	eng_WindowCallbackBind(&window->OnClose, &window->OnCloseCount, on_close, user_data);
 }
 
-void eng_unbind_onclose(struct eng_window* window, void(*on_close)(void*))
+void eng_OnCloseUnbind(struct eng_Window* window, void(*on_close)(void*))
 {
-	for (unsigned i = 0; i < window->on_close_count; ++i)
-	{
-		if (window->on_close[i].func == on_close)
-		{
-			--window->on_close_count;
-			if (window->on_close_count == 0)
-			{
-				free(window->on_close);
-				return;
-			}
-
-			memcpy(&window->on_close[i], &window->on_close[window->on_close_count], sizeof(struct eng_window_callback));
-			window->on_close = realloc(window->on_close, window->on_close_count * sizeof(struct eng_window_callback));
-			return;
-		}
-	}
+	eng_WindowCallbackUnbind(&window->OnClose, &window->OnCloseCount, on_close);
 }
 
 ////////////////////////////////////////////////////////////////////////// Debug
-void eng_window_dbg_print(struct eng_window* window)
+void eng_WindowDbgPrint(struct eng_Window* window)
 {
-	printf("[%s] (%d, %d)", window->title, window->width, window->height);
+	printf("[%s] (%d, %d)", window->Title, window->Width, window->Height);
 }
 
 ////////////////////////////////////////////////////////////////////////// Internal
 
-bool eng_window_setup_validate(struct eng_window* window, unsigned width, unsigned height, const char* title)
+bool eng_WindowSetupValidate(struct eng_Window* window, unsigned width, unsigned height, const char* title)
 {
+#if !defined(GAME_FINAL)
 	if (window == NULL)
 	{
-		printf("[eng_window_setup] FAILED. Invalid window");
+		eng_WindowLogFatal("Invalid window");
 		return false;
 	}
 	if (width == 0 || width > 10000)
 	{
-		printf("[eng_window_setup] FAILED. Invalid width");
+		eng_WindowLogFatal("Invalid width");
 		return false;
 	}
 	if (height == 0 || height > 10000)
 	{
-		printf("[eng_window_setup] FAILED. Invalid height");
+		eng_WindowLogFatal("Invalid height");
 		return false;
 	}
 	if (title == NULL)
 	{
-		printf("[eng_window_setup] FAILED. Invalid title.");
+		eng_WindowLogFatal("Invalid title.");
 		return false;
 	}
+#endif
 	return true;
 }
 
-LRESULT CALLBACK eng_window_wndproc(struct eng_window* window, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK eng_WindowWndproc(struct eng_Window* window, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
 	{
-	case WM_CLOSE:
-	case WM_QUIT:
-		eng_window_close(window);
-		break;
+		case WM_CLOSE:
+		case WM_QUIT:
+			eng_WindowClose(window);
+			break;
 	}
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-LRESULT CALLBACK eng_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK eng_Wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	for (unsigned i = 0; i < WINDOWS_MAX; ++i)
 	{
 		if (g_all_windows[i])
 		{
-			if (g_all_windows[i]->hwnd == hwnd)
+			if (g_all_windows[i]->Hwnd == hwnd)
 			{
-				return eng_window_wndproc(g_all_windows[i], hwnd, msg, wParam, lParam);
+				return eng_WindowWndproc(g_all_windows[i], hwnd, msg, wParam, lParam);
 			}
 		}
 		else
@@ -216,8 +237,53 @@ LRESULT CALLBACK eng_wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 	}
-	printf("[eng_wndproc] FAILED. Could not find window with hwnd 0x%p. Falling back to DefWindowProc.", hwnd);
+	eng_WindowLogFatal("Could not find window with hwnd 0x%p. Falling back to DefWindowProc.", hwnd);
 	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+void eng_WindowCallbackBind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*), void* user_data) 
+{
+	if (*outCallbacks == NULL)
+	{
+		*outCallbacks = malloc(sizeof(struct eng_WindowCallback));
+		++(*outCallbacksCount);
+	}
+	else
+	{
+		*outCallbacks = realloc(*outCallbacks, ++(*outCallbacksCount) * sizeof(struct eng_WindowCallback));
+	}
+	struct eng_WindowCallback* callback = &(*outCallbacks)[*outCallbacksCount - 1];
+	callback->Func = func;
+	callback->UserData = user_data;
+}
+
+void eng_WindowCallbackUnbind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*))
+{
+	for (unsigned i = 0; i < *outCallbacksCount; ++i)
+	{
+		if ((*outCallbacks)[i].Func == func)
+		{
+			--(*outCallbacksCount);
+			if ((*outCallbacksCount) == 0)
+			{
+				free((*outCallbacks));
+				(*outCallbacks) = NULL;
+				return;
+			}
+
+			memcpy(&(*outCallbacks)[i], &(*outCallbacks)[(*outCallbacksCount)], sizeof(struct eng_WindowCallback));
+			(*outCallbacks) = realloc((*outCallbacks), (*outCallbacksCount) * sizeof(struct eng_WindowCallback));
+			return;
+		}
+	}
+}
+
+void eng_WindowCallbackExec(struct eng_WindowCallback* callbacks, unsigned callbacksCount) 
+{
+	for (unsigned i = 0; i < callbacksCount; ++i)
+	{
+		callbacks[i].Func(callbacks[i].UserData);
+	}
 }
 
 #endif

@@ -5,6 +5,9 @@
     <ClCompile Include="Engine\Source\Window_Windows.c">
       <Filter>Engine</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\Source\Stopwatch_Windows.c">
+      <Filter>Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -13,6 +16,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Window.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Stopwatch.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

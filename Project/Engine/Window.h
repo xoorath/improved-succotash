@@ -1,25 +1,36 @@
-#include <stdbool.h>
+#pragma once
 
-#define WINDOWS_MAX 32
+#define WINDOWS_MAX 4
 
 #ifdef __cplusplus
 extern "C" {
+#else
+#include <stdbool.h>
 #endif
 
 	////////////////////////////////////////////////////////////////////////// Lifecycle
-	struct eng_window* eng_window_malloc();
-	bool eng_window_init(struct eng_window* window, unsigned width, unsigned height, const char* title);
-	void eng_window_free(struct eng_window* window);
+	struct eng_Window* eng_WindowMalloc();
+	bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, const char* title);
+	void eng_WindowFree(struct eng_Window* window, bool subAllocationsOnly);
+
+	unsigned eng_WindowGetSizeof();
 
 	////////////////////////////////////////////////////////////////////////// Window API
-	void eng_window_close(struct eng_window* window);
+	void eng_WindowClose(struct eng_Window* window);
+	
+	const char* eng_WindowGetTitle(struct eng_Window* window);
+	unsigned eng_WindowGetWidth(struct eng_Window* window);
+	unsigned eng_WindowGetHeight(struct eng_Window* window);
+
+	void eng_WindowSetTitle(struct eng_Window* window, const char* title);
+	void eng_WindowSetSize(struct eng_Window* window, unsigned width, unsigned height);
 
 	////////////////////////////////////////////////////////////////////////// Callbacks
-	void eng_bind_onclose(struct eng_window* window, void(*on_close)(void* user_data), void* user_data);
-	void eng_unbind_onclose(struct eng_window* window, void(*on_close)(void* user_data));
+	void eng_OnCloseBind(struct eng_Window* window, void(*on_close)(void* user_data), void* user_data);
+	void eng_OnCloseUnbind(struct eng_Window* window, void(*on_close)(void* user_data));
 
 	////////////////////////////////////////////////////////////////////////// Debug
-	void eng_window_dbg_print(struct eng_window* window);
+	void eng_WindowDbgPrint(struct eng_Window* window);
 
 #ifdef __cplusplus
 }
