@@ -25,6 +25,11 @@ private:
 struct eng_Window;
 struct eng_Stopwatch;
 
+void OnWindowClose(void*) 
+{
+	printf("Window Close Detected");
+}
+
 int main(int argsc, char** argsv) {
 	////////////////////////////////////////////////////////////////////////// Setup
 	CoreSystemAllocator allocator;
@@ -38,7 +43,7 @@ int main(int argsc, char** argsv) {
 	////////////////////////////////////////////////////////////////////////// Run
 	if (eng_WindowInit(window, 1280, 720, "Improved Succotash"))
 	{
-		eng_WindowDbgPrint(window);
+		eng_OnCloseBind(window, [](void*) { printf("Window closed."); }, nullptr);
 	}
 
 	

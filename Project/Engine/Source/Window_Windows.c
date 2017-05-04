@@ -16,6 +16,11 @@
 
 #define eng_WindowLogFatal(fmt, ...) printf("[eng_Window] FATAL " fmt, __VA_ARGS__)
 
+#if defined(GAME_MOBILE) || defined(GAME_CONSOLE)
+#define WINDOWS_MAX 1
+#else // GAME_DESKTOP
+#define WINDOWS_MAX 4
+#endif
 
 struct eng_WindowCallback
 {
@@ -172,12 +177,6 @@ void eng_OnCloseBind(struct eng_Window* window, void(*on_close)(void*), void* us
 void eng_OnCloseUnbind(struct eng_Window* window, void(*on_close)(void*))
 {
 	eng_WindowCallbackUnbind(&window->OnClose, &window->OnCloseCount, on_close);
-}
-
-////////////////////////////////////////////////////////////////////////// Debug
-void eng_WindowDbgPrint(struct eng_Window* window)
-{
-	printf("[%s] (%d, %d)", window->Title, window->Width, window->Height);
 }
 
 ////////////////////////////////////////////////////////////////////////// Internal
