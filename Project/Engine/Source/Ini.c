@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 struct eng_IniKeyValue
 {
@@ -46,6 +47,11 @@ struct eng_IniR* eng_IniRMalloc()
 
 bool eng_IniRInit(struct eng_IniR* ini, const char* path)
 {
+	{ // temp
+		memset(ini, 0, sizeof(struct eng_IniR));
+		return true;
+	}
+
 	ini->File = fopen(path, "r");
 	if (ini->File == NULL)
 	{
