@@ -60,7 +60,11 @@ int main(int argsc, char** argsv) {
 		eng_WindowFree(window, true);
 		eng_UrlGlobalShutdown();
 		eng_IniRFree(ini, true);
-		exit(exitCode);
+		if (exitCode != 0)
+		{
+			exit(exitCode);
+		}
+		return exitCode;
 	};
 	
 	////////////////////////////////////////////////////////////////////////// Setup
@@ -119,5 +123,5 @@ int main(int argsc, char** argsv) {
 	}
 
 	////////////////////////////////////////////////////////////////////////// Cleanup
-	GracefullyExit(0);
+	return GracefullyExit(0);
 }
