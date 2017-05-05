@@ -33,6 +33,7 @@ private:
 
 struct eng_Window;
 struct eng_Stopwatch;
+struct eng_Url;
 
 void OnWindowClose(void*) 
 {
@@ -48,7 +49,7 @@ int main(int argsc, char** argsv) {
 	CoreSystemAllocator allocator;
 
 	eng_Stopwatch* stopwatch = allocator.Malloc<eng_Stopwatch*>(eng_StopwatchGetSizeof());
-	eng_Window* window = allocator.Malloc<eng_Window*>(eng_WindowGetSizeof());
+	eng_Window* window = nullptr;
 
 	auto GracefullyExit = [&] (int exitCode)
 	{
@@ -67,6 +68,7 @@ int main(int argsc, char** argsv) {
 		GracefullyExit(-1);
 	}
 
+	window = allocator.Malloc<eng_Window*>(eng_WindowGetSizeof());
 	if (!eng_Ensure(eng_WindowInit(window, 1280, 720, "Improved Succotash"), "Application window failed to initialize."))
 	{
 		GracefullyExit(-1);
@@ -78,6 +80,20 @@ int main(int argsc, char** argsv) {
 
 	////////////////////////////////////////////////////////////////////////// Run
 	eng_StopwatchStart(stopwatch);
+
+	const char* urls[] = {"http://google.ca", "https://google.ca", "gibberish", "http://gibberish.notaurl"};
+	for (auto& url : urls)
+	{
+		if (eng_UrlEasyTestConnection(url))
+		{
+			eng_Log("Connected to: %s\n", url);
+		}
+		else
+		{
+			eng_Log("Not connected to: %s\n", url);
+		}
+	}
+
 	while (eng_WindowUpdate(window, 1)) {
 
 	}

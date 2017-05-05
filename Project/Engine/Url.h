@@ -55,6 +55,14 @@ extern "C" {
 	 */
 	unsigned eng_UrlGetSizeof();
 
+	////////////////////////////////////////////////////////////////////////// Url API
+
+	/** @returns true if a connection can be established with the target url. */
+	bool eng_UrlTestConnection(struct eng_Url* engUrl);
+
+	/** @returns true if a connection can be established with the target url. */
+	bool eng_UrlEasyTestConnection(const char* url);
+
 
 #ifdef __cplusplus
 }

@@ -143,12 +143,18 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Libs\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
       <Command>$(OutDir)..\Shared\CopyShared.bat</Command>
     </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>echo copying binary dependancies to output folder.
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+echo done copying binary dependancies to output folder.</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -160,12 +166,18 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Libs\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
       <Command>$(OutDir)..\Shared\CopyShared.bat</Command>
     </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>echo copying binary dependancies to output folder.
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+echo done copying binary dependancies to output folder.</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -181,12 +193,18 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Libs\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
       <Command>$(OutDir)..\Shared\CopyShared.bat</Command>
     </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>echo copying binary dependancies to output folder.
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+echo done copying binary dependancies to output folder.</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Final|Win32'">
     <ClCompile>
@@ -202,12 +220,18 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Libs\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
       <Command>$(OutDir)..\Shared\CopyShared.bat</Command>
     </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>echo copying binary dependancies to output folder.
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+echo done copying binary dependancies to output folder.</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -223,12 +247,18 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Libs\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
       <Command>$(OutDir)..\Shared\CopyShared.bat</Command>
     </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>echo copying binary dependancies to output folder.
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+echo done copying binary dependancies to output folder.</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Final|x64'">
     <ClCompile>
@@ -244,12 +274,18 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Libs\vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
       <Command>$(OutDir)..\Shared\CopyShared.bat</Command>
     </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>echo copying binary dependancies to output folder.
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+echo done copying binary dependancies to output folder.</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Source\Graphics_Vulkan.c" />
