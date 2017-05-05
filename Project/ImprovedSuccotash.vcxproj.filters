@@ -7,17 +7,20 @@
     <ClCompile Include="Engine\Source\Log.c">
       <Filter>Engine\Source</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\Source\Stopwatch_Windows.c">
-      <Filter>Engine\Source</Filter>
-    </ClCompile>
-    <ClCompile Include="Engine\Source\Window_Windows.c">
-      <Filter>Engine\Source</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Main.cpp">
       <Filter>Source</Filter>
     </ClCompile>
     <ClCompile Include="Engine\Source\Url.c">
       <Filter>Engine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Source\Ini.c">
+      <Filter>Engine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Source\Stopwatch_Windows.c">
+      <Filter>Engine\Source\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Source\Window_Windows.c">
+      <Filter>Engine\Source\Windows</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -29,6 +32,9 @@
     </Filter>
     <Filter Include="Source">
       <UniqueIdentifier>{ae0a3e22-ad6f-4be4-bf6d-d565b2422753}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Source\Windows">
+      <UniqueIdentifier>{e2ce1dde-f9b3-4746-b7e4-43a78f20abf7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -45,6 +51,9 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Url.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Ini.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

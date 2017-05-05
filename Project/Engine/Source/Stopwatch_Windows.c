@@ -29,7 +29,13 @@ bool eng_StopwatchInit(struct eng_Stopwatch* stopwatch)
 }
 
 void eng_StopwatchFree(struct eng_Stopwatch* stopwatch, bool subAllocationsOnly) {
-	if (!subAllocationsOnly) {
+	if (stopwatch == NULL)
+	{
+		return;
+	}
+
+	if (!subAllocationsOnly) 
+	{
 		free(stopwatch);
 	}
 }

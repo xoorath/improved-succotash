@@ -66,6 +66,10 @@ struct eng_Window* eng_WindowMalloc()
 
 void eng_WindowFree(struct eng_Window* window, bool subAllocationsOnly)
 {
+	if (window == NULL)
+	{
+		return;
+	}
 	for (unsigned i = 0; i < WINDOWS_MAX; ++i)
 	{
 		if (g_all_windows[i])

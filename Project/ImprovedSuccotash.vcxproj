@@ -289,6 +289,7 @@ echo done copying binary dependancies to output folder.</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Source\Graphics_Vulkan.c" />
+    <ClCompile Include="Engine\Source\Ini.c" />
     <ClCompile Include="Engine\Source\Log.c" />
     <ClCompile Include="Engine\Source\Stopwatch_Windows.c" />
     <ClCompile Include="Engine\Source\Url.c" />
@@ -297,6 +298,7 @@ echo done copying binary dependancies to output folder.</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Engine\Graphics_Vulkan.h" />
+    <ClInclude Include="Engine\Ini.h" />
     <ClInclude Include="Engine\Log.h" />
     <ClInclude Include="Engine\Stopwatch.h" />
     <ClInclude Include="Engine\Url.h" />

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include <Engine/Graphics_Vulkan.h>
+#include <Engine/Ini.h>
 #include <Engine/Log.h>
 #include <Engine/Stopwatch.h>
 #include <Engine/Url.h>
@@ -34,6 +35,7 @@ private:
 struct eng_Window;
 struct eng_Stopwatch;
 struct eng_Url;
+struct eng_IniR;
 
 void OnWindowClose(void*) 
 {
@@ -50,18 +52,26 @@ int main(int argsc, char** argsv) {
 
 	eng_Stopwatch* stopwatch = allocator.Malloc<eng_Stopwatch*>(eng_StopwatchGetSizeof());
 	eng_Window* window = nullptr;
+	eng_IniR* ini = nullptr;
 
 	auto GracefullyExit = [&] (int exitCode)
 	{
 		eng_StopwatchFree(stopwatch, true);
 		eng_WindowFree(window, true);
 		eng_UrlGlobalShutdown();
+		eng_IniRFree(ini, true);
 		exit(exitCode);
 	};
 	
 	////////////////////////////////////////////////////////////////////////// Setup
 	eng_StopwatchInit(stopwatch);
 	eng_StopwatchStart(stopwatch);
+
+	ini = allocator.Malloc<eng_IniR*>(eng_IniRGetSizeof());
+	if (!eng_Ensure(eng_IniRInit(ini, "engine.ini"), "Failed to load engine.ini"))
+	{
+		GracefullyExit(-1);
+	}
 
 	if (!eng_Ensure(eng_UrlGlobalInit(), "Url global initialization failed."))
 	{
@@ -75,12 +85,6 @@ int main(int argsc, char** argsv) {
 	}
 	eng_OnCloseBind(window, OnWindowClose, nullptr);
 
-	eng_StopwatchStop(stopwatch);
-	eng_Log("Application setup took %f seconds.\n", eng_StopwatchGetSeconds(stopwatch));
-
-	////////////////////////////////////////////////////////////////////////// Run
-	eng_StopwatchStart(stopwatch);
-
 	const char* urls[] = {"http://google.ca", "https://google.ca", "gibberish", "http://gibberish.notaurl"};
 	for (auto& url : urls)
 	{
@@ -93,6 +97,11 @@ int main(int argsc, char** argsv) {
 			eng_Log("Not connected to: %s\n", url);
 		}
 	}
+
+	eng_StopwatchStop(stopwatch);
+	eng_Log("Application setup took %f seconds.\n", eng_StopwatchGetSeconds(stopwatch));
+	////////////////////////////////////////////////////////////////////////// Run
+	eng_StopwatchStart(stopwatch);
 
 	while (eng_WindowUpdate(window, 1)) {
 
