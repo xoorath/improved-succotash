@@ -5,6 +5,7 @@ extern "C" {
 #else
 #include <stdbool.h>
 #endif
+#include <stdint.h>
 
 	////////////////////////////////////////////////////////////////////////// Lifecycle
 	/**
@@ -37,7 +38,7 @@ extern "C" {
 	 * @return the sizeof the internal eng_Url object, for use with custom
 	 * allocators.
 	 */
-	unsigned eng_IniRGetSizeof();
+	size_t eng_IniRGetSizeof();
 
 	////////////////////////////////////////////////////////////////////////// Ini API
 

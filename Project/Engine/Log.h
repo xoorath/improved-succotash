@@ -6,7 +6,9 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-#if defined(GAME_FINAL)
+#define SILENT_IN_FINAL
+
+#if defined(GAME_FINAL) && defined(SILENT_IN_FINAL)
 #define eng_Log(fmt, ...)
 #define eng_Warn(fmt, ...)
 #define eng_Err(fmt, ...)
@@ -34,8 +36,8 @@ extern "C" {
 #define eng_Fatal(fmt, ...) eng_LogInternal("[ERROR] " fmt, __VA_ARGS__); exit(-1)
 
 
-	void eng_LogInternal(const char* fmt, ...);
-	bool eng_LogInternalCondition(bool condition, const char* fmt, ...);
+void eng_LogInternal(const char* fmt, ...);
+bool eng_LogInternalCondition(bool condition, const char* fmt, ...);
 
 #ifdef __cplusplus
 }

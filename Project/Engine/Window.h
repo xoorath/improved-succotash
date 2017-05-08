@@ -6,7 +6,25 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
+#include <stdint.h>
+
 	////////////////////////////////////////////////////////////////////////// Lifecycle
+	/**
+	* Window Global Init
+	*
+	* Call once and only once at application startup.
+	* @returns true on successful initialization.
+	*/
+	bool eng_WindowGlobalInit();
+
+	/**
+	* Window Global Shutdown.
+	*
+	* Call one and only once at application shutdown.
+	* @note initialization does not need to be successful for this call to be safe.
+	*/
+	void eng_WindowGlobalShutdown();
+
 	/**
 	 * Window Malloc
 	 *
@@ -21,7 +39,7 @@ extern "C" {
 	* @description Initializes the window, making it ready for use.
 	* @return true if initialization was successful.
 	*/
-	bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, const char* title);
+	bool eng_WindowInit(struct eng_Window* window, uint16_t width, uint16_t height, const char* title);
 
 	/**
 	* Window Free
@@ -38,7 +56,7 @@ extern "C" {
 	* @return the sizeof the internal eng_Window object, for use with
 	* custom allocators.
 	*/
-	unsigned eng_WindowGetSizeof();
+	size_t eng_WindowGetSizeof();
 
 	////////////////////////////////////////////////////////////////////////// Window API
 	/**
@@ -55,27 +73,34 @@ extern "C" {
 	 *
 	 * This function should be called regularly for all windows, allowing the
 	 * window to process messages.
-	 * @returns true if at least one window is not in a closing state.
 	 */
-	bool eng_WindowUpdate(struct eng_Window* window, unsigned windowCount);
+	void eng_WindowUpdate(struct eng_Window* window);
 	
 	/** @returns Currently set window title. */
 	const char* eng_WindowGetTitle(struct eng_Window* window);
 	/** @returns Currently set window width. */
-	unsigned eng_WindowGetWidth(struct eng_Window* window);
+	uint16_t eng_WindowGetWidth(struct eng_Window* window);
 	/** @returns Currently set window height. */
-	unsigned eng_WindowGetHeight(struct eng_Window* window);
+	uint16_t eng_WindowGetHeight(struct eng_Window* window);
 
 	/** Sets a new title for this window. */
 	void eng_WindowSetTitle(struct eng_Window* window, const char* title);
 	/** Sets a new size for this window. */
-	void eng_WindowSetSize(struct eng_Window* window, unsigned width, unsigned height);
+	void eng_WindowSetSize(struct eng_Window* window, uint16_t width, uint16_t height);
+
+	/** @returns true if the window supports vulkan. */
+	bool eng_WindowSupportsVulkan(struct eng_Window* window);
+	/** @returns true if binding vulkan was a success. */
+	bool eng_WindowBindVulkan(struct eng_Window* window, struct eng_Vulkan* vulkan);;
 
 	////////////////////////////////////////////////////////////////////////// Callbacks
+	
+	typedef void(*eng_WindowCallback_t)(void*);
+
 	/** Binds a function to the OnClose callback, triggered when this window is closing. */
-	void eng_OnCloseBind(struct eng_Window* window, void(*OnClose)(void* UserData), void* UserData);
+	void eng_OnCloseBind(struct eng_Window* window, eng_WindowCallback_t OnClose, void* UserData);
 	/** Unbinds a function from the OnClose callback, triggered when this window is closing. */
-	void eng_OnCloseUnbind(struct eng_Window* window, void(*OnClose)(void* UserData));
+	void eng_OnCloseUnbind(struct eng_Window* window, eng_WindowCallback_t OnClose);
 
 #ifdef __cplusplus
 }

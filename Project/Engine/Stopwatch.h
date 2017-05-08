@@ -5,6 +5,7 @@ extern "C" {
 #else
 #include <stdbool.h>
 #endif
+#include <stdint.h>
 
 	////////////////////////////////////////////////////////////////////////// Lifecycle
 	/**
@@ -53,6 +54,17 @@ extern "C" {
 	 * Stops the stopwatch, also caches the seconds elapsed internally.
 	 */
 	void eng_StopwatchStop(struct eng_Stopwatch* stopwatch);
+
+	/**
+	 * Stopwatch to string
+	 * Displays hours, minutes, seconds, milliseconds in the following format:
+	 * [00:00:00:0000]
+	 * 
+	 * string length must be large enough for this format. ENG_STOPWATCH_TOSTRINGLEN
+	 * can be used for convenience.
+	 */
+	void eng_StopwatchToString(struct eng_Stopwatch* stopwatch, char* str, size_t strLen);
+#define ENG_STOPWATCH_TOSTRING_LEN  sizeof("[00:00:00:000]")
 	
 	/** @returns the hours elapsed between stopwatch start and stop.  */
 	double eng_StopwatchGetHours(struct eng_Stopwatch* stopwatch);

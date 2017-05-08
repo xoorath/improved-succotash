@@ -56,7 +56,7 @@ void eng_UrlFree(struct eng_Url* engUrl, bool subAllocationsOnly)
 	}
 }
 
-unsigned eng_UrlGetSizeof()
+size_t eng_UrlGetSizeof()
 {
 	return sizeof(struct eng_Url);
 }

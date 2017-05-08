@@ -22,6 +22,12 @@
     <ClCompile Include="Engine\Source\Window_Windows.c">
       <Filter>Engine\Source\Windows</Filter>
     </ClCompile>
+    <ClCompile Include="Engine\Source\Graphics_VulkanInternal.c">
+      <Filter>Engine\Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Engine\Source\Array.c">
+      <Filter>Engine\Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Engine">
@@ -54,6 +60,15 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="Engine\Ini.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics_VulkanForwardDecl.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Graphics_VulkanInternal.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine\Array.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

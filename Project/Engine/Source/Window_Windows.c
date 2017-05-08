@@ -2,62 +2,81 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include <Engine/Window.h>
+
+#include <Engine/Array.h>
+#include <Engine/Graphics_Vulkan.h>
 #include <Engine/Log.h>
+
+#include <ThirdParty/Vulkan/vulkan.h>
+#include <ThirdParty/GLFW/glfw3.h>
+
+#include <Engine/Graphics_VulkanInternal.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <windows.h>
-#include <windowsx.h>
-#include <Commdlg.h>
-#include <shellapi.h>
-
-#pragma comment(lib,"user32.lib")
-
-#if defined(GAME_MOBILE) || defined(GAME_CONSOLE)
-#define WINDOWS_MAX 1
-#else // GAME_DESKTOP
-#define WINDOWS_MAX 4
-#endif
-
 struct eng_WindowCallback
 {
-	void(*Func)(void*);
+	eng_WindowCallback_t Func;
 	void* UserData;
 };
 
 struct eng_Window
 {
+	GLFWwindow* Window;
+	bool Closing;
+
 	// display properties
-	unsigned Width, Height;
+	uint16_t Width, Height;
 	char* Title;
 
-	// handles
-	HWND Hwnd;
-	HDC Hdc;
-	HINSTANCE Hinstance;
-
 	// callbacks
-	struct eng_WindowCallback* OnClose;
-	unsigned OnCloseCount;
-
-	// states
-	bool Closing;
+	eng_ArrayDecl(OnClose, struct eng_WindowCallback);
 };
 
-struct eng_Window* g_all_windows[WINDOWS_MAX] = { 0 };
+bool g_VulkanSupport = false;
+const char** g_VulkanRequiredExtensions = NULL;
+uint32_t g_VulkanRequiredExtensionCount = 0;
 
-bool eng_WindowSetupValidate(struct eng_Window* window, unsigned width, unsigned height, const char* title);
-LRESULT CALLBACK eng_WindowWndproc(struct eng_Window* window, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK eng_Wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+void eng_WindowHandleGLFWError(int errorCode, const char* description);
 
-void eng_WindowCallbackBind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*), void* user_data);
-void eng_WindowCallbackUnbind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*));
-void eng_WindowCallbackExec(struct eng_WindowCallback* callbacks, unsigned callbacksCount);
+bool eng_WindowSetupValidate(struct eng_Window* window, uint16_t width, uint16_t height, const char* title);
 
+void eng_WindowCallbackListBind(struct eng_Array* callbackList, eng_WindowCallback_t func, void* userData);
+void eng_WindowCallbackListUnbind(struct eng_Array* callbackList, eng_WindowCallback_t func);
+void eng_WindowCallbackListExec(struct eng_Array* callbackList);
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
+bool eng_WindowGlobalInit()
+{
+	if (glfwInit())
+	{
+
+		g_VulkanSupport = glfwVulkanSupported();
+
+		glfwSetErrorCallback(eng_WindowHandleGLFWError);
+
+		g_VulkanRequiredExtensions = glfwGetRequiredInstanceExtensions(&g_VulkanRequiredExtensionCount);
+
+#if !defined(GAME_FINAL)
+		eng_Log("Using GLFW versioin %s\n", glfwGetVersionString());
+		eng_Log("GLFW vulkan? %s\n", g_VulkanSupport ? "yes" : "no");
+		for (uint32_t i = 0; i < g_VulkanRequiredExtensionCount; ++i)
+		{
+			eng_Log("GLFW Extension: [%s]\n", g_VulkanRequiredExtensions[i]);
+		}
+#endif
+
+		return true;
+	}
+	return false;
+}
+
+void eng_WindowGlobalShutdown()
+{
+	glfwTerminate();
+}
 
 struct eng_Window* eng_WindowMalloc()
 {
@@ -70,111 +89,38 @@ void eng_WindowFree(struct eng_Window* window, bool subAllocationsOnly)
 	{
 		return;
 	}
-	for (unsigned i = 0; i < WINDOWS_MAX; ++i)
-	{
-		if (g_all_windows[i])
-		{
-			if (g_all_windows[i] == window)
-			{
-				g_all_windows[i] = NULL;
-			}
-		}
-	}
 
 	free(window->Title);
-	free(window->OnClose);
+	
+	eng_ArrayDestroy(&window->OnClose);
+
 	if (!subAllocationsOnly)
 	{
 		free(window);
 	}
 }
 
-bool eng_WindowInit(struct eng_Window* window, unsigned width, unsigned height, const char* title)
+bool eng_WindowInit(struct eng_Window* window, uint16_t width, uint16_t height, const char* title)
 {
 	if (!eng_WindowSetupValidate(window, width, height, title))
 	{
 		return false;
 	}
-
-	bool globalWindowAssigned = false;
-	for (unsigned i = 0; i < WINDOWS_MAX; ++i) {
-		if (g_all_windows[i] == NULL) {
-			g_all_windows[i] = window;
-			globalWindowAssigned = true;
-			break;
-		}
-	}
-	if (!eng_Ensure(globalWindowAssigned, "Maximum number of windows exceded. The max is currently set at %d.", WINDOWS_MAX))
-	{
-		return false;
-	}
-
 	memset(window, 0, sizeof(struct eng_Window));
 
-	window->Width = width;
-	window->Height = height;
-	window->Title = malloc(strlen(title) + 1);
-	strcpy(window->Title, title);
+	eng_ArrayInitType(&window->OnClose, struct eng_WindowCallback);
 
-	DWORD style, styleEx;
-	style = WS_POPUP | WS_BORDER | WS_CAPTION | WS_SYSMENU | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-	styleEx = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
-
-	window->Hinstance = GetModuleHandle(NULL);
-	if (!eng_Ensure(window->Hinstance != 0, "GetModuleHandle failed."))
-	{
-		return false;
+	// hint to GLFW not to create opengl/opengles contexts.
+	if (g_VulkanSupport) {
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	}
 
-	WNDCLASSEX wc;
-	wc.cbSize = sizeof(WNDCLASSEX);
-	wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-	wc.lpfnWndProc = (WNDPROC)eng_Wndproc;
-	wc.cbClsExtra = 0;
-	wc.cbWndExtra = 0;
-	wc.hInstance = window->Hinstance;
-	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-	wc.hIconSm = NULL;
-	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = NULL;  // No brush - we are going to paint our own background
-	wc.lpszMenuName = NULL;  // No default menu
-	wc.lpszClassName = L"game";
-	if (!eng_Ensure(RegisterClassEx(&wc) != 0, "RegisterClassEx failed."))
-	{
-		return false;
-	}
-
-	HWND hwndDesktop = GetDesktopWindow();
-	RECT desktop;
-	GetWindowRect(hwndDesktop, &desktop);
-
-	int x = desktop.right / 2 - width / 2,
-		y = desktop.bottom / 2 - height / 2;
-
-	RECT sysRect = { x, y, width, height };
-
-	AdjustWindowRectEx(&sysRect, style, FALSE, styleEx);
-
-	window->Hwnd = CreateWindowEx(styleEx, L"game", L"game", style, x, y, width, height, NULL, NULL, window->Hinstance, NULL);
-	if (!eng_Ensure(window->Hwnd != 0, "CreateWindowEx failed."))
-	{
-		return false;
-	}
-
-	window->Hdc = GetDC(window->Hwnd);
-	if (!eng_Ensure(window->Hdc != 0, "GetDC failed."))
-	{
-		return false;
-	}
-
-	// return value is not referring to success/failure. Don't use ensure here.
-	// see: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633548(v=vs.85).aspx
-	ShowWindow(window->Hwnd, SW_SHOW);
+	window->Window = glfwCreateWindow(width, height, title, NULL, NULL);
 
 	return true;
 }
 
-unsigned eng_WindowGetSizeof()
+size_t eng_WindowGetSizeof()
 {
 	return sizeof(struct eng_Window);
 }
@@ -186,31 +132,20 @@ void eng_WindowClose(struct eng_Window* window)
 	if (!window->Closing)
 	{
 		window->Closing = true;
-		if (window->Hwnd != 0)
-		{
-			eng_Ensure(CloseWindow(window->Hwnd), "CloseWindow call failed");
-			window->Hwnd = 0;
-		}
-
-		eng_WindowCallbackExec(window->OnClose, window->OnCloseCount);
+		eng_WindowCallbackListExec(&window->OnClose);
 	}
 }
 
-bool eng_WindowUpdate(struct eng_Window* window, unsigned windowCount)
+void eng_WindowUpdate(struct eng_Window* window)
 {
-	MSG msg;
-	unsigned livingWindows = windowCount;
-	for (unsigned i = 0; i < windowCount; ++i)
+	if (glfwWindowShouldClose(window->Window))
 	{
-		while (PeekMessage(&msg, window[i].Hwnd, 0, 0, PM_REMOVE)) {
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
-		if (window[i].Closing) {
-			--livingWindows;
-		}
+		eng_WindowClose(window);
 	}
-	return livingWindows > 0;
+	else
+	{
+		glfwPollEvents();
+	}
 }
 
 const char* eng_WindowGetTitle(struct eng_Window* window)
@@ -218,12 +153,12 @@ const char* eng_WindowGetTitle(struct eng_Window* window)
 	return window->Title;
 }
 
-unsigned eng_WindowGetWidth(struct eng_Window* window)
+uint16_t eng_WindowGetWidth(struct eng_Window* window)
 {
 	return window->Width;
 }
 
-unsigned eng_WindowGetHeight(struct eng_Window* window)
+uint16_t eng_WindowGetHeight(struct eng_Window* window)
 {
 	return window->Height;
 }
@@ -235,27 +170,63 @@ void eng_WindowSetTitle(struct eng_Window* window, const char* title)
 	strcpy(window->Title, title);
 }
 
-void eng_WindowSetSize(struct eng_Window* window, unsigned width, unsigned height)
+void eng_WindowSetSize(struct eng_Window* window, uint16_t width, uint16_t height)
 {
 	window->Width = width;
 	window->Height = height;
 }
 
-////////////////////////////////////////////////////////////////////////// Callbacks
-
-void eng_OnCloseBind(struct eng_Window* window, void(*on_close)(void*), void* user_data)
+bool eng_WindowSupportsVulkan(struct eng_Window* window)
 {
-	eng_WindowCallbackBind(&window->OnClose, &window->OnCloseCount, on_close, user_data);
+	return g_VulkanSupport;
 }
 
-void eng_OnCloseUnbind(struct eng_Window* window, void(*on_close)(void*))
+bool eng_WindowBindVulkan(struct eng_Window* window, struct eng_Vulkan* vulkan)
 {
-	eng_WindowCallbackUnbind(&window->OnClose, &window->OnCloseCount, on_close);
+	if (!eng_Ensure(g_VulkanSupport, "eng_WindowBindVulkan found no vulkan support. Call eng_WindowSupportsVulkan first to check."))
+	{
+		return false;
+	}
+
+	if (g_VulkanRequiredExtensionCount > 0)
+	{
+		eng_VulkanProvideExtensions(vulkan, g_VulkanRequiredExtensions, g_VulkanRequiredExtensionCount);
+	}
+
+	eng_VulkanCreateInstance(vulkan);
+
+	VkSurfaceKHR surface = 0;
+	VkResult result = glfwCreateWindowSurface(eng_VulkanGetInstance(vulkan), window->Window, NULL, &surface);
+	eng_VulkanEnsure(result, "create window surface");
+
+	if (!eng_Ensure(eng_VulkanProvideSurface(vulkan, surface), "Failed to provide vulkan with glfw surface."))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////// Callbacks
+
+void eng_OnCloseBind(struct eng_Window* window, eng_WindowCallback_t onClose, void* userData)
+{
+	eng_WindowCallbackListBind(&window->OnClose, onClose, userData);
+}
+
+void eng_OnCloseUnbind(struct eng_Window* window, eng_WindowCallback_t userData)
+{
+	eng_WindowCallbackListUnbind(&window->OnClose, userData);
 }
 
 ////////////////////////////////////////////////////////////////////////// Internal
 
-bool eng_WindowSetupValidate(struct eng_Window* window, unsigned width, unsigned height, const char* title)
+void eng_WindowHandleGLFWError(int errorCode, const char* description)
+{
+	eng_Err("GLFW Error(%d): \"%s\"\n", errorCode, description);
+}
+
+bool eng_WindowSetupValidate(struct eng_Window* window, uint16_t width, uint16_t height, const char* title)
 {
 #if !defined(GAME_FINAL)
 	if (window == NULL)
@@ -263,12 +234,12 @@ bool eng_WindowSetupValidate(struct eng_Window* window, unsigned width, unsigned
 		eng_DevFatal("Invalid window");
 		return false;
 	}
-	if (width == 0 || width > 10000)
+	if (width == 0 || width >= 32767)
 	{
 		eng_DevFatal("Invalid width");
 		return false;
 	}
-	if (height == 0 || height > 10000)
+	if (height == 0 || height >= 32767)
 	{
 		eng_DevFatal("Invalid height");
 		return false;
@@ -279,82 +250,38 @@ bool eng_WindowSetupValidate(struct eng_Window* window, unsigned width, unsigned
 		return false;
 	}
 #endif
+
 	return true;
 }
 
-LRESULT CALLBACK eng_WindowWndproc(struct eng_Window* window, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+void eng_WindowCallbackListBind(struct eng_Array* callbackList, eng_WindowCallback_t func, void* UserData)
 {
-	switch (msg)
-	{
-		case WM_CLOSE:
-		case WM_QUIT:
-			eng_WindowClose(window);
-			break;
-	}
-	return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-LRESULT CALLBACK eng_Wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	for (unsigned i = 0; i < WINDOWS_MAX; ++i)
-	{
-		if (g_all_windows[i])
-		{
-			if (g_all_windows[i]->Hwnd == hwnd)
-			{
-				return eng_WindowWndproc(g_all_windows[i], hwnd, msg, wParam, lParam);
-			}
-		}
-		else
-		{
-			break;
-		}
-	}
-	return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-void eng_WindowCallbackBind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*), void* user_data) 
-{
-	if (*outCallbacks == NULL)
-	{
-		*outCallbacks = malloc(sizeof(struct eng_WindowCallback));
-		++(*outCallbacksCount);
-	}
-	else
-	{
-		*outCallbacks = realloc(*outCallbacks, ++(*outCallbacksCount) * sizeof(struct eng_WindowCallback));
-	}
-	struct eng_WindowCallback* callback = &(*outCallbacks)[*outCallbacksCount - 1];
+	eng_ArrayResize(callbackList, callbackList->Count + 1);
+	struct eng_WindowCallback* callback = eng_ArrayPIndexType(callbackList, struct eng_WindowCallback, callbackList->Count-1);
 	callback->Func = func;
-	callback->UserData = user_data;
+	callback->UserData = UserData;
 }
 
-void eng_WindowCallbackUnbind(struct eng_WindowCallback** outCallbacks, unsigned* outCallbacksCount, void(*func)(void*))
+// TODO: handle callbacks that might be in the list twice.
+void eng_WindowCallbackListUnbind(struct eng_Array* callbackList, eng_WindowCallback_t func)
 {
-	for (unsigned i = 0; i < *outCallbacksCount; ++i)
-	{
-		if ((*outCallbacks)[i].Func == func)
+	for (uint32_t i = 0; i < callbackList->Count; ++i) {
+		struct eng_WindowCallback* callback = eng_ArrayPIndexType(callbackList, struct eng_WindowCallback, i);
+		if (callback->Func == func)
 		{
-			--(*outCallbacksCount);
-			if ((*outCallbacksCount) == 0)
-			{
-				free((*outCallbacks));
-				(*outCallbacks) = NULL;
-				return;
-			}
-
-			memcpy(&(*outCallbacks)[i], &(*outCallbacks)[(*outCallbacksCount)], sizeof(struct eng_WindowCallback));
-			(*outCallbacks) = realloc((*outCallbacks), (*outCallbacksCount) * sizeof(struct eng_WindowCallback));
+			eng_ArrayRemoveLastSwap(callbackList, i);
 			return;
 		}
 	}
 }
 
-void eng_WindowCallbackExec(struct eng_WindowCallback* callbacks, unsigned callbacksCount) 
+void eng_WindowCallbackListExec(struct eng_Array* callbackList)
 {
-	for (unsigned i = 0; i < callbacksCount; ++i)
+	struct eng_WindowCallback* begin = eng_ArrayBeginType(callbackList, struct eng_WindowCallback);
+	struct eng_WindowCallback* end = eng_ArrayEndType(callbackList, struct eng_WindowCallback);
+	for (; begin < end; ++begin)
 	{
-		callbacks[i].Func(callbacks[i].UserData);
+		begin->Func(begin->UserData);
 	}
 }
 

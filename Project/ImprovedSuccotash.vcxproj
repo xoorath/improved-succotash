@@ -143,7 +143,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\$(Platform)\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;$(SolutionDir)ThirdParty\Bin\GLFW\$(Platform)\glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
@@ -151,8 +151,9 @@
     </CustomBuildStep>
     <PostBuildEvent>
       <Command>echo copying binary dependancies to output folder.
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\glfw\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
 echo done copying binary dependancies to output folder.</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -166,7 +167,7 @@ echo done copying binary dependancies to output folder.</Command>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\$(Platform)\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;$(SolutionDir)ThirdParty\Bin\GLFW\$(Platform)\glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
@@ -174,8 +175,9 @@ echo done copying binary dependancies to output folder.</Command>
     </CustomBuildStep>
     <PostBuildEvent>
       <Command>echo copying binary dependancies to output folder.
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\glfw\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
 echo done copying binary dependancies to output folder.</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -193,7 +195,7 @@ echo done copying binary dependancies to output folder.</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\$(Platform)\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;$(SolutionDir)ThirdParty\Bin\GLFW\$(Platform)\glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
@@ -201,8 +203,9 @@ echo done copying binary dependancies to output folder.</Command>
     </CustomBuildStep>
     <PostBuildEvent>
       <Command>echo copying binary dependancies to output folder.
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\glfw\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
 echo done copying binary dependancies to output folder.</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -220,7 +223,7 @@ echo done copying binary dependancies to output folder.</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\$(Platform)\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;$(SolutionDir)ThirdParty\Bin\GLFW\$(Platform)\glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
@@ -228,8 +231,9 @@ echo done copying binary dependancies to output folder.</Command>
     </CustomBuildStep>
     <PostBuildEvent>
       <Command>echo copying binary dependancies to output folder.
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\glfw\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
 echo done copying binary dependancies to output folder.</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -247,7 +251,7 @@ echo done copying binary dependancies to output folder.</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\$(Platform)\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;$(SolutionDir)ThirdParty\Bin\GLFW\$(Platform)\glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
@@ -255,8 +259,9 @@ echo done copying binary dependancies to output folder.</Command>
     </CustomBuildStep>
     <PostBuildEvent>
       <Command>echo copying binary dependancies to output folder.
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\glfw\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
 echo done copying binary dependancies to output folder.</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -274,7 +279,7 @@ echo done copying binary dependancies to output folder.</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SolutionDir)ThirdParty\Bin\Vulkan\$(Platform)\vulkan-1.lib;$(SolutionDir)ThirdParty\Bin\Curl\$(Platform)\libcurldll.a;$(SolutionDir)ThirdParty\Bin\GLFW\$(Platform)\glfw3dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>mainCRTStartup</EntryPointSymbol>
     </Link>
     <CustomBuildStep>
@@ -282,13 +287,16 @@ echo done copying binary dependancies to output folder.</Command>
     </CustomBuildStep>
     <PostBuildEvent>
       <Command>echo copying binary dependancies to output folder.
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*"
-xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*"
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\Curl\$(Platform)\*.crt" "$(OutDir)*" &gt; nul
+xcopy /Y /D "$(ProjectDir)ThirdParty\Bin\glfw\$(Platform)\*.dll" "$(OutDir)*" &gt; nul
 echo done copying binary dependancies to output folder.</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Engine\Source\Array.c" />
     <ClCompile Include="Engine\Source\Graphics_Vulkan.c" />
+    <ClCompile Include="Engine\Source\Graphics_VulkanInternal.c" />
     <ClCompile Include="Engine\Source\Ini.c" />
     <ClCompile Include="Engine\Source\Log.c" />
     <ClCompile Include="Engine\Source\Stopwatch_Windows.c" />
@@ -297,7 +305,10 @@ echo done copying binary dependancies to output folder.</Command>
     <ClCompile Include="Source\Main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Engine\Array.h" />
     <ClInclude Include="Engine\Graphics_Vulkan.h" />
+    <ClInclude Include="Engine\Graphics_VulkanForwardDecl.h" />
+    <ClInclude Include="Engine\Graphics_VulkanInternal.h" />
     <ClInclude Include="Engine\Ini.h" />
     <ClInclude Include="Engine\Log.h" />
     <ClInclude Include="Engine\Stopwatch.h" />

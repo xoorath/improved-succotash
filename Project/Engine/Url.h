@@ -6,6 +6,8 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
+#include <stdint.h>
+
 	////////////////////////////////////////////////////////////////////////// Lifecycle
 	/**
 	 * Url Global Init
@@ -53,7 +55,7 @@ extern "C" {
 	 * @return the sizeof the internal eng_Url object, for use with custom
 	 * allocators.
 	 */
-	unsigned eng_UrlGetSizeof();
+	size_t eng_UrlGetSizeof();
 
 	////////////////////////////////////////////////////////////////////////// Url API
 

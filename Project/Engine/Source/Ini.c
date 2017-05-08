@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <Engine/Log.h>
+
 struct eng_IniKeyValue
 {
 	char* Key;
@@ -17,27 +19,27 @@ struct eng_IniKeyValue
 struct eng_IniSection
 {
 	char* SectionHead;
-	unsigned KeyValuePairCount;
+	uint32_t KeyValuePairCount;
 	struct eng_IniKeyValue* KeyValuePairs;
 };
 
 struct eng_IniR
 {
-	unsigned FileSize;
+	uint32_t FileSize;
 	/**
 	 * It's common to read multiple values from a single section.
 	 * By tracking the last section read, we can often improve performance 
 	 * by starting the search from there.
 	 */
-	unsigned LastSectionPosition;
+	uint32_t LastSectionPosition;
 	char* FileContents;
 	FILE* File;
 	
-	unsigned SectionCount;
+	uint32_t SectionCount;
 	struct eng_IniSection* Sections;
 };
 
-unsigned eng_IniRCountSections(struct eng_IniR* ini);
+uint32_t eng_IniRCountSections(struct eng_IniR* ini);
 void eng_IniRInitSections(struct eng_IniR* ini);
 
 struct eng_IniR* eng_IniRMalloc()
@@ -65,7 +67,7 @@ bool eng_IniRInit(struct eng_IniR* ini, const char* path)
 		ini->FileContents = malloc(ini->FileSize+1);
 		fread(ini->FileContents, 1, ini->FileSize, ini->File);
 		ini->FileContents[ini->FileSize] = '\0';
-		for (unsigned i = 0; i < ini->FileSize; ++i)
+		for (uint32_t i = 0; i < ini->FileSize; ++i)
 		{
 			switch (ini->FileContents[i])
 			{
@@ -128,7 +130,7 @@ void eng_IniRFree(struct eng_IniR* ini, bool subAllocationsOnly)
 	}
 }
 
-unsigned eng_IniRGetSizeof()
+size_t eng_IniRGetSizeof()
 {
 	return sizeof(struct eng_IniR);
 }
@@ -232,13 +234,14 @@ bool eng_IniRLineGetVarStr(char* line, char** outVarStart, char** outVarEnd)
 	return false;
 }
 
-unsigned eng_IniRCountSections(struct eng_IniR* ini)
+uint32_t eng_IniRCountSections(struct eng_IniR* ini)
 {
 	char* c = ini->FileContents;
 	char* s;
 	char* e;
-	unsigned count = 0;
-	for (unsigned i = 0; i < ini->FileSize;)
+	
+	intptr_t count = 0;
+	for (intptr_t i = 0; i < (intptr_t)ini->FileSize;)
 	{
 		s = &ini->FileContents[i];
 		if (eng_IniRLineGetSectionHead(s, &s, &e))
@@ -248,16 +251,20 @@ unsigned eng_IniRCountSections(struct eng_IniR* ini)
 		i += e - s;
 		
 	}
-	return count;
+	if (count > UINT32_MAX)
+	{
+		eng_DevFatal("Something went wrong, count is higher than 32bit max.");
+	}
+	return (uint32_t)count;
 }
 
-eng_IniRCoutnVars(struct eng_IniR* ini)
+uint32_t eng_IniRCoutnVars(struct eng_IniR* ini)
 {
 	char* c = ini->FileContents;
 	char* s;
 	char* e;
-	unsigned count = 0;
-	for (unsigned i = 0; i < ini->FileSize;)
+	intptr_t count = 0;
+	for (intptr_t i = 0; i < (intptr_t)ini->FileSize;)
 	{
 		s = &ini->FileContents[i];
 		if (eng_IniRLineGetSectionHead(s, &s, &e))
@@ -267,7 +274,11 @@ eng_IniRCoutnVars(struct eng_IniR* ini)
 		i += e - s;
 		
 	}
-	return count;
+	if (count > UINT32_MAX)
+	{
+		eng_DevFatal("Something went wrong, count is higher than 32bit max.");
+	}
+	return (uint32_t)count;
 }
 
 void eng_IniRInitSections(struct eng_IniR* ini)
@@ -282,8 +293,8 @@ void eng_IniRInitSections(struct eng_IniR* ini)
 	char* c = ini->FileContents;
 	char* s;
 	char* e;
-	unsigned sectionIdx = 0;
-	for (unsigned i = 0; i < ini->FileSize;)
+	uint32_t sectionIdx = 0;
+	for (intptr_t i = 0; i < (intptr_t)ini->FileSize;)
 	{
 		s = &ini->FileContents[i];
 		if (eng_IniRLineGetSectionHead(s, &s, &e))
