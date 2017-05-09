@@ -39,7 +39,7 @@ void eng_VulkanSetRequiresPresent(struct eng_Vulkan* vulkan, bool requiresPresen
 ////////////////////////////////////////////////////////////////////////// API
 
 bool eng_VulkanCreateInstance(struct eng_Vulkan* vulkan);
-bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface);
+bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, uint16_t width, uint16_t height);
 
 VkInstance eng_VulkanGetInstance(struct eng_Vulkan* vulkan);
 

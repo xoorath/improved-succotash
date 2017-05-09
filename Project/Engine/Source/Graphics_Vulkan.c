@@ -28,9 +28,13 @@ struct eng_Vulkan {
 	VkCommandPool CommandPool;
 	VkCommandBuffer Command;
 
-	// Swapchain Data
+	// Surface Data
+	uint16_t Width, Height;
 	uint32_t PresentFamilyIndex;
 	VkFormat SurfaceFormat;
+	VkColorSpaceKHR SurfaceColorSpace;
+	VkPresentModeKHR PresentMode;
+	VkSurfaceCapabilitiesKHR SurfaceCapabilities;
 
 	// Setup Data
 	struct eng_Array ExtensionsList;
@@ -155,9 +159,11 @@ bool eng_VulkanCreateInstance(struct eng_Vulkan* vulkan)
 	return true;
 }
 
-bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface)
+bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, uint16_t width, uint16_t height)
 {
 	vulkan->Surface = surface;
+	vulkan->Width = width;
+	vulkan->Height = height;
 	vulkan->RequiresPresent = true;
 
 	bool(*stages[])(struct eng_Vulkan*) = {
@@ -429,16 +435,159 @@ bool eng_VulkanDetermineDeviceSurfaceCapability(struct eng_Vulkan* vulkan)
 		// TODO: Should we be selecting a better surface format based on some criteria?
 		vulkan->SurfaceFormat = surfFormats[0].format;
 	}
+	vulkan->SurfaceColorSpace = surfFormats[0].colorSpace;
 
 	eng_Log("Vulkan surface format selected: %s\n", eng_InternalVKFormatToString(vulkan->SurfaceFormat));
 
 	free(surfFormats);
+
+	result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan->PhysicalDevice, vulkan->Surface, &vulkan->SurfaceCapabilities);
+	eng_VulkanEnsure(result, "get surface capabilities");
+
+	VkExtent2D swapchainExtent = { (uint32_t)vulkan->Width, (uint32_t)vulkan->Height };
+	// width and height are either both 0xffffffff, or both not 0xffffffff
+	if (vulkan->SurfaceCapabilities.currentExtent.width == 0xffffffff)
+	{
+		if (swapchainExtent.width < vulkan->SurfaceCapabilities.minImageExtent.width)
+		{
+			eng_Warn("The graphics card can't render to a surface with the size we requested. "
+					"Requested width: %d, minimum width: %d\n", 
+					swapchainExtent.width, vulkan->SurfaceCapabilities.minImageExtent.width);
+			swapchainExtent.width = vulkan->SurfaceCapabilities.minImageExtent.width;
+		}
+		else if (swapchainExtent.width > vulkan->SurfaceCapabilities.maxImageExtent.width)
+		{
+			eng_Warn("The graphics card can't render to a surface with the size we requested. "
+					"Requested width: %d, maximum width: %d\n", 
+					swapchainExtent.width, vulkan->SurfaceCapabilities.minImageExtent.width);
+			swapchainExtent.width = vulkan->SurfaceCapabilities.minImageExtent.width;
+		}
+
+		if (swapchainExtent.height < vulkan->SurfaceCapabilities.minImageExtent.height)
+		{
+			eng_Warn("The graphics card can't render to a surface with the size we requested. "
+					"Requested height: %d, minimum height: %d\n", 
+					swapchainExtent.height, vulkan->SurfaceCapabilities.minImageExtent.height);
+			swapchainExtent.height = vulkan->SurfaceCapabilities.minImageExtent.height;
+		}
+		else if (swapchainExtent.height > vulkan->SurfaceCapabilities.maxImageExtent.height)
+		{
+			eng_Warn("The graphics card can't render to a surface with the size we requested. "
+					"Requested height: %d, maximum height: %d\n", 
+					swapchainExtent.height, vulkan->SurfaceCapabilities.minImageExtent.height);
+			swapchainExtent.height = vulkan->SurfaceCapabilities.minImageExtent.height;
+		}
+	}
+	else
+	{
+		swapchainExtent = vulkan->SurfaceCapabilities.currentExtent;
+	}
+
+	if (swapchainExtent.width > UINT16_MAX)
+	{
+		eng_Err("Swapchain extent width is larger than uint16 max. Our renderer isn't configured to handle that.");
+		swapchainExtent.width = UINT16_MAX;
+	}
+
+	if (swapchainExtent.height > UINT16_MAX)
+	{
+		eng_Err("Swapchain extent height is larger than uint16 max. Our renderer isn't configured to handle that.");
+		swapchainExtent.height = UINT16_MAX;
+	}
+
+	vulkan->Width = (uint32_t)swapchainExtent.width;
+	vulkan->Height = (uint32_t)swapchainExtent.height;
+
+	// The FIFO present mode is guaranteed by the spec to be supported
+	// and to have no tearing.  It's a great default present mode to use.
+	vulkan->PresentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+	// Currently we take no action to select a preferred present mode.
+	/*
+	uint32_t presentModesCount;
+	result = vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan->PhysicalDevice, vulkan->Surface, &presentModesCount, NULL);
+	eng_VulkanEnsure("get physical device surface present modes");
+
+	VkPresentModeKHR* presentModes = calloc(presentModesCount, sizeof(VkPresentModeKHR));
+	result = vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan->PhysicalDevice, vulkan->Surface, &presentModesCount, presentModes);
+	eng_VulkanEnsure("get physical device surface present modes");
+	*/
 
 	return true;
 }
 
 bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan)
 {
+	uint32_t desiredNumberOfSwapchainImages = 3;
+
+	if (desiredNumberOfSwapchainImages < vulkan->SurfaceCapabilities.minImageCount)
+	{
+		eng_Err("Desired number of swapchain images is lower than the minimum ammount. Desired: %d, minimum: %d", 
+				desiredNumberOfSwapchainImages,
+				vulkan->SurfaceCapabilities.minImageCount);
+		desiredNumberOfSwapchainImages = vulkan->SurfaceCapabilities.minImageCount;
+	}
+	else if (desiredNumberOfSwapchainImages > vulkan->SurfaceCapabilities.maxImageCount)
+	{
+		eng_Err("Desired number of swapchain images is higher than the maximum ammount. Desired: %d, maximum: %d", 
+				desiredNumberOfSwapchainImages,
+				vulkan->SurfaceCapabilities.minImageCount);
+		desiredNumberOfSwapchainImages = vulkan->SurfaceCapabilities.maxImageCount;
+	}
+
+	eng_Log("Vulkan using %d images in swapchain. min: %d, max: %d\n", 
+			desiredNumberOfSwapchainImages,
+			vulkan->SurfaceCapabilities.minImageCount,
+			vulkan->SurfaceCapabilities.maxImageCount);
+
+	VkSurfaceTransformFlagsKHR preTransform;
+	if (vulkan->SurfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+	{
+		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+	}
+	else
+	{
+		preTransform = vulkan->SurfaceCapabilities.currentTransform;
+	}
+
+	// Find a supported composite alpha mode - one of these is guaranteed to be set
+	VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] = {
+		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+		VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+		VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+		VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+	};
+
+	for (uint32_t i = 0; i < sizeof(compositeAlphaFlags); i++)
+	{
+		if (vulkan->SurfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i])
+		{
+			compositeAlpha = compositeAlphaFlags[i];
+			break;
+		}
+	}
+
+	VkSwapchainCreateInfoKHR swapchainInfo;
 	
+	swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapchainInfo.pNext = NULL;
+	swapchainInfo.surface = vulkan->Surface;
+	swapchainInfo.minImageCount = desiredNumberOfSwapchainImages;
+	swapchainInfo.imageFormat = vulkan->SurfaceFormat;
+	swapchainInfo.imageColorSpace = vulkan->SurfaceColorSpace;
+	swapchainInfo.imageExtent.width = (uint32_t)vulkan->Width;
+	swapchainInfo.imageExtent.height = (uint32_t)vulkan->Height;
+	swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	swapchainInfo.preTransform = preTransform;
+	swapchainInfo.compositeAlpha = compositeAlpha;
+	swapchainInfo.imageArrayLayers = 1;
+	swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	swapchainInfo.queueFamilyIndexCount = 0;
+	swapchainInfo.pQueueFamilyIndices = NULL;
+	swapchainInfo.presentMode = vulkan->PresentMode;
+	// swapchainInfo.oldSwapchain = NULL; // TODO?
+	swapchainInfo.clipped = true;
+
 	return true;
 }

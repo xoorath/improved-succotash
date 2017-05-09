@@ -195,11 +195,11 @@ bool eng_WindowBindVulkan(struct eng_Window* window, struct eng_Vulkan* vulkan)
 
 	eng_VulkanCreateInstance(vulkan);
 
-	VkSurfaceKHR surface = 0;
+	VkSurfaceKHR surface;
 	VkResult result = glfwCreateWindowSurface(eng_VulkanGetInstance(vulkan), window->Window, NULL, &surface);
 	eng_VulkanEnsure(result, "create window surface");
 
-	if (!eng_Ensure(eng_VulkanProvideSurface(vulkan, surface), "Failed to provide vulkan with glfw surface."))
+	if (!eng_Ensure(eng_VulkanProvideSurface(vulkan, surface, window->Width, window->Height), "Failed to provide vulkan with glfw surface."))
 	{
 		return false;
 	}
