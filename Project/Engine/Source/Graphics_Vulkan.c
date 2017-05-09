@@ -1,5 +1,6 @@
 #include <Engine/Graphics_Vulkan.h>
 
+#include <Engine/Array.h>
 #include <Engine/Log.h>
 
 #if defined(GAME_WINDOWS)
@@ -32,8 +33,7 @@ struct eng_Vulkan {
 	VkFormat SurfaceFormat;
 
 	// Setup Data
-	uint32_t ExtensionsCount;
-	char** Extensions;
+	struct eng_Array ExtensionsList;
 
 	// Configured requirements
 	bool RequiresGraphics : 1;
@@ -62,6 +62,8 @@ bool eng_VulkanInit(struct eng_Vulkan* vulkan) {
 	vulkan->RequiresCompute = false;
 	vulkan->RequiresPresent = false;
 
+	eng_ArrayInit(&vulkan->ExtensionsList, sizeof(char*));
+
 	return true;
 }
 
@@ -71,10 +73,13 @@ void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly) {
 		return;
 	}
 
-	for (uint32_t i = 0; i < vulkan->ExtensionsCount; ++i) {
-		free(vulkan->Extensions[i]);
+	char** extensionsItterator = eng_ArrayBeginType(&vulkan->ExtensionsList, char*);
+	char** extensionsEnd = eng_ArrayEndType(&vulkan->ExtensionsList, char*);
+	for (; extensionsItterator < extensionsEnd; ++extensionsItterator)
+	{
+		free(*extensionsItterator);
 	}
-	free(vulkan->Extensions);
+	eng_ArrayDestroy(&vulkan->ExtensionsList);
 
 	free(vulkan->QueuePriorities);
 	free(vulkan->PhysicalDevices);
@@ -104,26 +109,12 @@ size_t eng_VulkanGetSizeof() {
 
 void eng_VulkanProvideExtensions(struct eng_Vulkan* vulkan, const char** extensions, uint32_t extensionsCount)
 {
-	if (vulkan->ExtensionsCount == 0)
+	for (uint32_t i = 0; i < extensionsCount; ++i)
 	{
-		vulkan->ExtensionsCount = extensionsCount;
-		vulkan->Extensions = calloc(extensionsCount, sizeof(char**));
-		for (uint32_t i = 0; i < extensionsCount; ++i) {
-			size_t len = strlen(extensions[i]);
-			vulkan->Extensions[i] = malloc(len + 1);
-			memcpy(vulkan->Extensions[i], extensions[i], len + 1);
-		}
-	}
-	else
-	{
-		vulkan->Extensions = realloc(vulkan->Extensions, vulkan->ExtensionsCount + extensionsCount);
-		uint32_t i = 0;
-		uint32_t j = vulkan->ExtensionsCount;
-		for (; j < extensionsCount; ++i, ++j) {
-			size_t len = strlen(extensions[i]);
-			vulkan->Extensions[j] = malloc(len + 1);
-			memcpy(vulkan->Extensions[j], extensions[i], len + 1);
-		}
+		size_t len = strlen(extensions[i]);
+		char* copy = malloc(len + 1);
+		memcpy(copy, extensions[i], len + 1);
+		eng_ArrayPushBack(&vulkan->ExtensionsList, &copy);
 	}
 }
 
@@ -211,8 +202,9 @@ bool eng_VulkanCreateInstanceInternal(struct eng_Vulkan* vulkan)
 	createInfo.pApplicationInfo = &appInfo;
 	createInfo.enabledLayerCount = 0;
 	createInfo.ppEnabledLayerNames = NULL;
-	createInfo.enabledExtensionCount = vulkan->ExtensionsCount;
-	createInfo.ppEnabledExtensionNames = vulkan->Extensions;
+	
+	createInfo.enabledExtensionCount = vulkan->ExtensionsList.Count;
+	createInfo.ppEnabledExtensionNames = vulkan->ExtensionsList.Buffer;
 
 	VkResult result = vkCreateInstance(&createInfo, NULL, &vulkan->Instance);
 	eng_VulkanEnsure(result, "create vulkan instance");

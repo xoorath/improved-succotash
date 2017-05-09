@@ -144,11 +144,10 @@ int main(int argsc, char** argsv) {
 	}
 	eng_StopwatchStop(stopwatch);
 
-	
 	eng_StopwatchToString(stopwatch, buffer, sizeof(buffer));
 	eng_Log("Application ran for: %s\n", buffer);
 
-	eng_Log("Core systems used %d of %d available memory.\n", allocator.GetCurrentOffset(), CoreSystemAllocator::CoreSystemMemorySize);
+	eng_Log("Core systems used %d/%d bytes of available memory.\n", allocator.GetCurrentOffset(), CoreSystemAllocator::CoreSystemMemorySize);
 
 	////////////////////////////////////////////////////////////////////////// Cleanup
 	return GracefullyExit(0);
