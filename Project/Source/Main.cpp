@@ -16,11 +16,12 @@
 
 class CoreSystemAllocator {
 public:
-	static constexpr unsigned CoreSystemMemorySize = 512;
+	static constexpr unsigned CoreSystemMemorySize = 1024;
 
 	template<typename T>
 	T Malloc(size_t size) {
 		if (CurrentOffset + size > CoreSystemMemorySize) {
+			__debugbreak();
 			throw "Critical failure. Buffer size is not large enough for internal systems.";
 		}
 		void* next = CoreSystemMemory + CurrentOffset;

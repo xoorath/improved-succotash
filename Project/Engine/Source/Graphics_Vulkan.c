@@ -11,6 +11,7 @@
 #include <Engine/Graphics_VulkanInternal.h>
 
 #define FENCE_COUNT 2
+#define SAMPLE_COUNT 1
 
 struct eng_Vulkan {
 	// Handles
@@ -29,6 +30,16 @@ struct eng_Vulkan {
 	VkCommandBuffer Command;
 	uint32_t FenceCount;
 	VkFence Fences[FENCE_COUNT];
+
+	struct
+	{
+		VkFormat Format;
+		VkImage Image;
+		VkDeviceMemory Mem;
+		VkImageView View;
+	} Depth;
+
+	VkPhysicalDeviceMemoryProperties MemoryProperties;
 
 	VkSwapchainKHR SwapChain;
 	uint32_t PresentFamilyIndex;
@@ -88,6 +99,10 @@ void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly) {
 		free(*extensionsItterator);
 	}
 	eng_ArrayDestroy(&vulkan->ExtensionsList);
+
+	vkDestroyImageView(vulkan->LogicalDevice, vulkan->Depth.View, NULL);
+	vkDestroyImage(vulkan->LogicalDevice, vulkan->Depth.Image, NULL);
+	vkFreeMemory(vulkan->LogicalDevice, vulkan->Depth.Mem, NULL);
 
 	free(vulkan->QueuePriorities);
 	free(vulkan->PhysicalDevices);
@@ -355,6 +370,7 @@ bool eng_VulkanSelectDevice(struct eng_Vulkan* vulkan)
 		{
 			vulkan->PhysicalDevice = device;
 			vulkan->QueueFamilyIndex = familyIndex;
+			memcpy(&vulkan->MemoryProperties, &memProperties, sizeof(VkPhysicalDeviceMemoryProperties));
 			bestDeviceQueueCount = selectedFamily->queueCount;
 		}
 
@@ -627,39 +643,111 @@ bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan)
 	return true;
 }
 
-
 bool eng_VulkanCreateDepthBuffer(struct eng_Vulkan* vulkan)
 {
-	uint32_t swapchainImagesCount;
-	VkResult result = vkGetSwapchainImagesKHR(vulkan->LogicalDevice, vulkan->SwapChain, &swapchainImagesCount, NULL);
-	eng_VulkanEnsure(result, "get swapchain images");
 
-	VkImage* swapchainImages = calloc(swapchainImagesCount, sizeof(VkImage));
-	result = vkGetSwapchainImagesKHR(vulkan->LogicalDevice, vulkan->SwapChain, &swapchainImagesCount, swapchainImages);
-	eng_VulkanEnsure(result, "get swapchain images");
-
-	VkFenceCreateInfo fenceInfo;
-	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	fenceInfo.pNext = NULL;
-	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-	for (uint32_t i = 0; i < swapchainImagesCount; ++i) {
-		VkImageViewCreateInfo imageViewInfo;
-		imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		imageViewInfo.pNext = NULL;
-		imageViewInfo.format = vulkan->SurfaceFormat;
-		imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-		imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-		imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-		imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-		imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageViewInfo.subresourceRange.baseMipLevel = 0;
-		imageViewInfo.subresourceRange.levelCount = 1;
-		imageViewInfo.subresourceRange.baseArrayLayer = 0;
-		imageViewInfo.subresourceRange.layerCount = 1;
-		imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		imageViewInfo.flags = 0;
+	VkImageCreateInfo imageInfo;
+	const VkFormat depthFormat = VK_FORMAT_D16_UNORM;
+	VkFormatProperties props;
+	vkGetPhysicalDeviceFormatProperties(vulkan->PhysicalDevice, depthFormat, &props);
+	if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+	{
+		imageInfo.tiling = VK_IMAGE_TILING_LINEAR;
 	}
+	else if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+	{
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	}
+	else
+	{
+		eng_DevFatal("Format unsupported");
+	}
+
+	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageInfo.pNext = NULL;
+	imageInfo.imageType = VK_IMAGE_TYPE_2D;
+	imageInfo.format = depthFormat;
+	imageInfo.extent.width = vulkan->Width;
+	imageInfo.extent.height = vulkan->Height;
+	imageInfo.extent.depth = 1;
+	imageInfo.mipLevels = 1;
+	imageInfo.arrayLayers = 1;
+	imageInfo.samples = SAMPLE_COUNT;
+	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+	imageInfo.queueFamilyIndexCount = 0;
+	imageInfo.pQueueFamilyIndices = NULL;
+	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	imageInfo.flags = 0;
+
+	VkMemoryAllocateInfo memAlloc;
+	memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memAlloc.pNext = NULL;
+	memAlloc.allocationSize = 0;
+	memAlloc.memoryTypeIndex = 0;
+
+	VkImageViewCreateInfo viewInfo;
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewInfo.pNext = NULL;
+	viewInfo.image = VK_NULL_HANDLE;
+	viewInfo.format = depthFormat;
+	viewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+	viewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+	viewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+	viewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = 1;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewInfo.flags = 0;
+
+	VkMemoryRequirements memReqs;
+
+	
+	vulkan->Depth.Format = depthFormat;
+
+	/* Create image */
+	VkResult result = vkCreateImage(vulkan->LogicalDevice, &imageInfo, NULL, &vulkan->Depth.Image);
+	eng_VulkanEnsure(result, "create image");
+
+	vkGetImageMemoryRequirements(vulkan->LogicalDevice, vulkan->Depth.Image, &memReqs);
+
+	memAlloc.allocationSize = memReqs.size;
+
+	uint32_t typeBits = memReqs.memoryTypeBits;
+	uint32_t requirements_mask = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	bool foundMemoryRequirements = false;
+	for (uint32_t i = 0; i < vulkan->MemoryProperties.memoryTypeCount; i++)
+	{
+		if ((typeBits & 1) == 1)
+		{
+			// Type is available, does it match user properties?
+			if ((vulkan->MemoryProperties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask)
+			{
+				memAlloc.memoryTypeIndex = i;
+				foundMemoryRequirements = true;
+				break;
+			}
+		}
+		typeBits >>= 1;
+	}
+
+	if (!eng_Ensure(foundMemoryRequirements, "Couldn't get memory type from properties"))
+	{
+		return false;
+	}
+
+	result = vkAllocateMemory(vulkan->LogicalDevice, &memAlloc, NULL, &vulkan->Depth.Mem);
+	eng_VulkanEnsure(result, "allocate image memory");
+
+	result = vkBindImageMemory(vulkan->LogicalDevice, vulkan->Depth.Image, vulkan->Depth.Mem, 0);
+	eng_VulkanEnsure(result, "bind image memory");
+
+	viewInfo.image = vulkan->Depth.Image;
+	result = vkCreateImageView(vulkan->LogicalDevice, &viewInfo, NULL, &vulkan->Depth.View);
+	eng_VulkanEnsure(result, "create image view");
 
 	return true;
 }
