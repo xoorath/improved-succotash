@@ -10,6 +10,8 @@
 
 #include <Engine/Graphics_VulkanInternal.h>
 
+#define FENCE_COUNT 2
+
 struct eng_Vulkan {
 	// Handles
 	VkInstance Instance;
@@ -17,23 +19,23 @@ struct eng_Vulkan {
 	VkDevice LogicalDevice;
 	VkSurfaceKHR Surface;
 	
-	// Hardware
 	uint32_t PhysicalDevicesCount;
 	VkPhysicalDevice* PhysicalDevices;
 
-	// Queue Data
 	uint32_t QueueCount;
 	float* QueuePriorities;
 	uint32_t QueueFamilyIndex;
 	VkCommandPool CommandPool;
 	VkCommandBuffer Command;
+	uint32_t FenceCount;
+	VkFence Fences[FENCE_COUNT];
 
-	// Surface Data
-	uint16_t Width, Height;
+	VkSwapchainKHR SwapChain;
 	uint32_t PresentFamilyIndex;
 	VkFormat SurfaceFormat;
 	VkColorSpaceKHR SurfaceColorSpace;
 	VkPresentModeKHR PresentMode;
+	uint16_t Width, Height;
 	VkSurfaceCapabilitiesKHR SurfaceCapabilities;
 
 	// Setup Data
@@ -51,7 +53,9 @@ bool eng_VulkanSelectDevice(struct eng_Vulkan* vulkan);
 bool eng_VulkanCreateLogicalDevice(struct eng_Vulkan* vulkan);
 bool eng_VulkanCreateCommandBuffer(struct eng_Vulkan* vulkan);
 bool eng_VulkanDetermineDeviceSurfaceCapability(struct eng_Vulkan* vulkan);
+bool eng_VulkanDestroySwapChain(struct eng_Vulkan* vulkan);
 bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan);
+bool eng_VulkanCreateDepthBuffer(struct eng_Vulkan* vulkan);
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 
@@ -88,6 +92,10 @@ void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly) {
 	free(vulkan->QueuePriorities);
 	free(vulkan->PhysicalDevices);
 
+	if (!eng_VulkanDestroySwapChain(vulkan))
+	{
+		eng_DevFatal("Couldn't destroy swap chain.\n");
+	}
 	vkDestroySurfaceKHR(vulkan->Instance, vulkan->Surface, NULL);
 	
 	if (vulkan->LogicalDevice)
@@ -166,13 +174,16 @@ bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, u
 	vulkan->Height = height;
 	vulkan->RequiresPresent = true;
 
-	bool(*stages[])(struct eng_Vulkan*) = {
+	bool(*stages[])(struct eng_Vulkan*) = 
+	{
 		eng_VulkanDetermineDeviceSurfaceCapability,
-		eng_VulkanCreateSwapchain
+		eng_VulkanCreateSwapchain,
+		eng_VulkanCreateDepthBuffer
 	};
 
 	const size_t count = sizeof(stages) / sizeof(stages[0]);
-	for (size_t i = 0; i < count; ++i) {
+	for (size_t i = 0; i < count; ++i) 
+	{
 		if (!stages[i](vulkan))
 		{
 			return false;
@@ -516,6 +527,21 @@ bool eng_VulkanDetermineDeviceSurfaceCapability(struct eng_Vulkan* vulkan)
 	return true;
 }
 
+bool eng_VulkanDestroySwapChain(struct eng_Vulkan* vulkan) {
+	if (vulkan->SwapChain != VK_NULL_HANDLE)
+	{
+		// Todo: set a better timeout value.
+		VkResult result = vkWaitForFences(vulkan->LogicalDevice, vulkan->FenceCount, vulkan->Fences, VK_TRUE, UINT64_MAX);
+		eng_VulkanEnsure(result, "wait for fences");
+
+		vkDestroySwapchainKHR(vulkan->LogicalDevice, vulkan->SwapChain, NULL);
+		vulkan->SwapChain = VK_NULL_HANDLE;
+
+		// TODO: null associated images as well. the swapchain will destroy them when the platform is done with them.
+	}
+	return true;
+}
+
 bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan)
 {
 	uint32_t desiredNumberOfSwapchainImages = 3;
@@ -559,7 +585,7 @@ bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan)
 		VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
 	};
 
-	for (uint32_t i = 0; i < sizeof(compositeAlphaFlags); i++)
+	for (size_t i = 0; i < sizeof(compositeAlphaFlags); ++i)
 	{
 		if (vulkan->SurfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i])
 		{
@@ -569,7 +595,6 @@ bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan)
 	}
 
 	VkSwapchainCreateInfoKHR swapchainInfo;
-	
 	swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchainInfo.pNext = NULL;
 	swapchainInfo.surface = vulkan->Surface;
@@ -586,8 +611,55 @@ bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan)
 	swapchainInfo.queueFamilyIndexCount = 0;
 	swapchainInfo.pQueueFamilyIndices = NULL;
 	swapchainInfo.presentMode = vulkan->PresentMode;
-	// swapchainInfo.oldSwapchain = NULL; // TODO?
+	swapchainInfo.oldSwapchain = VK_NULL_HANDLE;
 	swapchainInfo.clipped = true;
+
+	if (vulkan->SwapChain != VK_NULL_HANDLE) {
+		if (!eng_Ensure(eng_VulkanDestroySwapChain(vulkan), "Could not destroy swapchain."))
+		{
+			return false;
+		}
+	}
+
+	VkResult result = vkCreateSwapchainKHR(vulkan->LogicalDevice, &swapchainInfo, NULL, &vulkan->SwapChain);
+	eng_VulkanEnsure(result, "create swap chain");
+
+	return true;
+}
+
+
+bool eng_VulkanCreateDepthBuffer(struct eng_Vulkan* vulkan)
+{
+	uint32_t swapchainImagesCount;
+	VkResult result = vkGetSwapchainImagesKHR(vulkan->LogicalDevice, vulkan->SwapChain, &swapchainImagesCount, NULL);
+	eng_VulkanEnsure(result, "get swapchain images");
+
+	VkImage* swapchainImages = calloc(swapchainImagesCount, sizeof(VkImage));
+	result = vkGetSwapchainImagesKHR(vulkan->LogicalDevice, vulkan->SwapChain, &swapchainImagesCount, swapchainImages);
+	eng_VulkanEnsure(result, "get swapchain images");
+
+	VkFenceCreateInfo fenceInfo;
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceInfo.pNext = NULL;
+	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	for (uint32_t i = 0; i < swapchainImagesCount; ++i) {
+		VkImageViewCreateInfo imageViewInfo;
+		imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		imageViewInfo.pNext = NULL;
+		imageViewInfo.format = vulkan->SurfaceFormat;
+		imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+		imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+		imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+		imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+		imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageViewInfo.subresourceRange.baseMipLevel = 0;
+		imageViewInfo.subresourceRange.levelCount = 1;
+		imageViewInfo.subresourceRange.baseArrayLayer = 0;
+		imageViewInfo.subresourceRange.layerCount = 1;
+		imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewInfo.flags = 0;
+	}
 
 	return true;
 }
