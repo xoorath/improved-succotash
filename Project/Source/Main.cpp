@@ -142,6 +142,7 @@ int main(int argsc, char** argsv) {
 
 	while (ApplicationRunning) {
 		eng_WindowUpdate(window);
+		eng_VulkanUpdate(vulkan);
 	}
 	eng_StopwatchStop(stopwatch);
 

@@ -43,6 +43,8 @@ bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, u
 
 VkInstance eng_VulkanGetInstance(struct eng_Vulkan* vulkan);
 
+void eng_VulkanUpdate(struct eng_Vulkan* vulkan);
+
 // Requires <Engine/Log.h> to be included. Function must return a boolean for success.
 #define eng_VulkanEnsure(result, step) if(!eng_Ensure(result == VK_SUCCESS, "Failed to " step ". Error(%d): \"%s\"", (int)result, eng_InternalVkResultToString(result))) { return false; }
 

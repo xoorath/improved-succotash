@@ -8,3 +8,4 @@ Builds/*/ImprovedSuccotash.ilk
 Builds/*/ImprovedSuccotash.pdb
 Builds/*/ImprovedSuccotash.ipdb
 Builds/*/ImprovedSuccotash.iobj
+*/*.opendb

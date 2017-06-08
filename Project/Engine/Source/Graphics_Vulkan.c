@@ -1,3 +1,29 @@
+// The basic "up and running" code in this file was borrowed from github.com/corngood/SDL_vulkan
+// This licence covers this code.
+/*
+The MIT License (MIT)
+
+Copyright (c) 2016 David McFarland
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include <Engine/Graphics_Vulkan.h>
 
 #include <Engine/Array.h>
@@ -10,125 +36,68 @@
 
 #include <Engine/Graphics_VulkanInternal.h>
 
+#include <assert.h>
+
 #define FENCE_COUNT 2
 #define SAMPLE_COUNT 1
 
-struct eng_Vulkan {
-	// Handles
-	VkInstance Instance;
-	VkPhysicalDevice PhysicalDevice;
-	VkDevice LogicalDevice;
-	VkSurfaceKHR Surface;
-	
-	uint32_t PhysicalDevicesCount;
-	VkPhysicalDevice* PhysicalDevices;
-
-	uint32_t QueueCount;
-	float* QueuePriorities;
-	uint32_t QueueFamilyIndex;
-	VkCommandPool CommandPool;
-	VkCommandBuffer Command;
-	uint32_t FenceCount;
-	VkFence Fences[FENCE_COUNT];
-
-	struct
-	{
-		VkFormat Format;
-		VkImage Image;
-		VkDeviceMemory Mem;
-		VkImageView View;
-	} Depth;
-
-	VkPhysicalDeviceMemoryProperties MemoryProperties;
-
-	VkSwapchainKHR SwapChain;
-	uint32_t PresentFamilyIndex;
-	VkFormat SurfaceFormat;
-	VkColorSpaceKHR SurfaceColorSpace;
-	VkPresentModeKHR PresentMode;
-	uint16_t Width, Height;
-	VkSurfaceCapabilitiesKHR SurfaceCapabilities;
-
-	// Setup Data
-	struct eng_Array ExtensionsList;
-
-	// Configured requirements
-	bool RequiresGraphics : 1;
-	bool RequiresCompute : 1;
-	bool RequiresPresent : 1;
+struct eng_BufferInfo
+{
+	VkImage image;
+	VkCommandBuffer cmd;
+	VkImageView view;
+	VkFramebuffer fb;
 };
 
-bool eng_VulkanCreateInstanceInternal(struct eng_Vulkan* vulkan);
-bool eng_VulkanEnumerateDevices(struct eng_Vulkan* vulkan);
-bool eng_VulkanSelectDevice(struct eng_Vulkan* vulkan);
-bool eng_VulkanCreateLogicalDevice(struct eng_Vulkan* vulkan);
-bool eng_VulkanCreateCommandBuffer(struct eng_Vulkan* vulkan);
-bool eng_VulkanDetermineDeviceSurfaceCapability(struct eng_Vulkan* vulkan);
-bool eng_VulkanDestroySwapChain(struct eng_Vulkan* vulkan);
-bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan);
-bool eng_VulkanCreateDepthBuffer(struct eng_Vulkan* vulkan);
+struct eng_Vulkan
+{
+	VkInstance Instance;
+	VkDevice Device;
+	VkSwapchainKHR Swapchain;
+	VkExtent2D SwapchainExtent;
+	VkCommandBuffer DrawCmd;
+	VkRenderPass RenderPass;
+	VkQueue Queue;
+	struct eng_BufferInfo* Buffers;
+
+	eng_ArrayDecl(Extensions, const char*);
+};
+
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 
-struct eng_Vulkan* eng_VulkanMalloc() {
+struct eng_Vulkan* eng_VulkanMalloc()
+{
 	return malloc(sizeof(struct eng_Vulkan));
 }
 
-bool eng_VulkanInit(struct eng_Vulkan* vulkan) {
+bool eng_VulkanInit(struct eng_Vulkan* vulkan)
+{
 	memset(vulkan, 0, sizeof(struct eng_Vulkan));
 
-	vulkan->RequiresGraphics = true;
-	vulkan->RequiresCompute = false;
-	vulkan->RequiresPresent = false;
-
-	eng_ArrayInit(&vulkan->ExtensionsList, sizeof(char*));
+	eng_ArrayInitType(&vulkan->Extensions, const char*);
 
 	return true;
 }
 
-void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly) {
+void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly)
+{
 	if (vulkan == NULL)
 	{
 		return;
 	}
 
-	char** extensionsItterator = eng_ArrayBeginType(&vulkan->ExtensionsList, char*);
-	char** extensionsEnd = eng_ArrayEndType(&vulkan->ExtensionsList, char*);
-	for (; extensionsItterator < extensionsEnd; ++extensionsItterator)
+	free(vulkan->Buffers);
+	eng_ArrayDestroy(&vulkan->Extensions);
+
+	if (!subAllocationsOnly)
 	{
-		free(*extensionsItterator);
-	}
-	eng_ArrayDestroy(&vulkan->ExtensionsList);
-
-	vkDestroyImageView(vulkan->LogicalDevice, vulkan->Depth.View, NULL);
-	vkDestroyImage(vulkan->LogicalDevice, vulkan->Depth.Image, NULL);
-	vkFreeMemory(vulkan->LogicalDevice, vulkan->Depth.Mem, NULL);
-
-	free(vulkan->QueuePriorities);
-	free(vulkan->PhysicalDevices);
-
-	if (!eng_VulkanDestroySwapChain(vulkan))
-	{
-		eng_DevFatal("Couldn't destroy swap chain.\n");
-	}
-	vkDestroySurfaceKHR(vulkan->Instance, vulkan->Surface, NULL);
-	
-	if (vulkan->LogicalDevice)
-	{
-		VkCommandBuffer cmd_bufs[] = { vulkan->Command };
-		vkFreeCommandBuffers(vulkan->LogicalDevice, vulkan->CommandPool, 1, cmd_bufs);
-		vkDestroyCommandPool(vulkan->LogicalDevice, vulkan->CommandPool, NULL);
-		vkDestroyDevice(vulkan->LogicalDevice, NULL);
-
-	}
-	vkDestroyInstance(vulkan->Instance, NULL);
-
-	if (!subAllocationsOnly) {
 		free(vulkan);
 	}
 }
 
-size_t eng_VulkanGetSizeof() {
+size_t eng_VulkanGetSizeof()
+{
 	return sizeof(struct eng_Vulkan);
 }
 
@@ -136,618 +105,426 @@ size_t eng_VulkanGetSizeof() {
 
 void eng_VulkanProvideExtensions(struct eng_Vulkan* vulkan, const char** extensions, uint32_t extensionsCount)
 {
+	eng_ArrayResize(&vulkan->Extensions, extensionsCount);
 	for (uint32_t i = 0; i < extensionsCount; ++i)
 	{
-		size_t len = strlen(extensions[i]);
-		char* copy = malloc(len + 1);
-		memcpy(copy, extensions[i], len + 1);
-		eng_ArrayPushBack(&vulkan->ExtensionsList, &copy);
+		eng_ArrayIndexType(&vulkan->Extensions, const char*, i) = extensions[i];
 	}
 }
 
 
 void eng_VulkanSetRequiresCompute(struct eng_Vulkan* vulkan, bool requiresCompute)
 {
-	vulkan->RequiresCompute = requiresCompute;
 }
 
 void eng_VulkanSetRequiresGraphics(struct eng_Vulkan* vulkan, bool requiresGraphics)
 {
-	vulkan->RequiresGraphics = requiresGraphics;
 }
 
 void eng_VulkanSetRequiresPresent(struct eng_Vulkan* vulkan, bool requiresPresent)
 {
-	vulkan->RequiresPresent = requiresPresent;
 }
 
 ////////////////////////////////////////////////////////////////////////// API
 bool eng_VulkanCreateInstance(struct eng_Vulkan* vulkan)
 {
-	bool(*stages[])(struct eng_Vulkan*) = {
-		eng_VulkanCreateInstanceInternal,
-		eng_VulkanEnumerateDevices,
-		eng_VulkanSelectDevice,
-		eng_VulkanCreateLogicalDevice,
-		eng_VulkanCreateCommandBuffer
-	};
+	VkResult err;
+	{
+		uint32_t extension_count = 0;
+		const char *extension_names[64];
+		extension_names[extension_count++] = VK_KHR_SURFACE_EXTENSION_NAME;
+		const VkApplicationInfo app = {
+			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+			.pApplicationName = "SDL_vulkan example",
+			.apiVersion = VK_MAKE_VERSION(1, 0, 3),
+		};
 
-	const size_t count = sizeof(stages) / sizeof(stages[0]);
-	for (size_t i = 0; i < count; ++i) {
-		if (!stages[i](vulkan))
+		for (uint32_t i = 0; i < vulkan->Extensions.Count; ++i)
 		{
-			return false;
+			extension_names[extension_count++] = eng_ArrayIndexType(&vulkan->Extensions, const char*, i);
 		}
+
+		VkInstanceCreateInfo inst_info = {
+			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+			.pApplicationInfo = &app,
+			.enabledExtensionCount = extension_count,
+			.ppEnabledExtensionNames = extension_names,
+		};
+
+		err = vkCreateInstance(&inst_info, NULL, &vulkan->Instance);
+		assert(!err);
 	}
+
+
+
 	return true;
 }
 
 bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, uint16_t width, uint16_t height)
 {
-	vulkan->Surface = surface;
-	vulkan->Width = width;
-	vulkan->Height = height;
-	vulkan->RequiresPresent = true;
-
-	bool(*stages[])(struct eng_Vulkan*) = 
+	VkResult err;
+	VkPhysicalDevice gpu;
 	{
-		eng_VulkanDetermineDeviceSurfaceCapability,
-		eng_VulkanCreateSwapchain,
-		eng_VulkanCreateDepthBuffer
-	};
+		uint32_t gpu_count;
+		err = vkEnumeratePhysicalDevices(vulkan->Instance, &gpu_count, NULL);
+		assert(!err && gpu_count > 0);
 
-	const size_t count = sizeof(stages) / sizeof(stages[0]);
-	for (size_t i = 0; i < count; ++i) 
-	{
-		if (!stages[i](vulkan))
+		if (gpu_count > 0)
 		{
-			return false;
+			VkPhysicalDevice* gpus = calloc(gpu_count, sizeof(VkPhysicalDevice));
+			err = vkEnumeratePhysicalDevices(vulkan->Instance, &gpu_count, gpus);
+			assert(!err);
+			gpu = gpus[0];
+			free(gpus);
+		}
+		else
+		{
+			gpu = VK_NULL_HANDLE;
 		}
 	}
 
+	VkCommandPool cmd_pool;
+	{
+		uint32_t queue_family_index = UINT32_MAX;
+		{
+			uint32_t queue_count;
+			vkGetPhysicalDeviceQueueFamilyProperties(gpu, &queue_count, NULL);
+
+			VkQueueFamilyProperties* queue_props = calloc(queue_count, sizeof(VkQueueFamilyProperties));
+			vkGetPhysicalDeviceQueueFamilyProperties(gpu, &queue_count, queue_props);
+			assert(queue_count >= 1);
+
+			for (uint32_t i = 0; i < queue_count; i++)
+			{
+				VkBool32 supports_present;
+				vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &supports_present);
+				if (supports_present && (queue_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+				{
+					queue_family_index = i;
+					break;
+				}
+			}
+			assert(queue_family_index != UINT32_MAX);
+			free(queue_props);
+		}
+
+		uint32_t extension_count = 0;
+		const char *extension_names[64];
+		extension_count = 0;
+		extension_names[extension_count++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+
+		float queue_priorities[1] = {0.0};
+		const VkDeviceQueueCreateInfo queueInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = queue_family_index,
+			.queueCount = 1,
+			.pQueuePriorities = queue_priorities};
+
+		VkDeviceCreateInfo deviceInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.queueCreateInfoCount = 1,
+			.pQueueCreateInfos = &queueInfo,
+			.enabledExtensionCount = extension_count,
+			.ppEnabledExtensionNames = (const char *const *)extension_names,
+		};
+
+		err = vkCreateDevice(gpu, &deviceInfo, NULL, &vulkan->Device);
+		assert(!err);
+
+		vkGetDeviceQueue(vulkan->Device, queue_family_index, 0, &vulkan->Queue);
+
+		const VkCommandPoolCreateInfo cmd_pool_info = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.queueFamilyIndex = queue_family_index,
+			.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+		};
+		err = vkCreateCommandPool(vulkan->Device, &cmd_pool_info, NULL, &cmd_pool);
+		assert(!err);
+	}
+
+	VkFormat           format;
+	VkColorSpaceKHR    color_space;
+	{
+		uint32_t format_count;
+		err = vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, NULL);
+		assert(!err);
+
+		VkSurfaceFormatKHR* formats = calloc(format_count, sizeof(VkSurfaceFormatKHR));
+		err = vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, formats);
+		assert(!err);
+
+		if (format_count == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
+		{
+			format = VK_FORMAT_B8G8R8A8_SRGB;
+		}
+		else
+		{
+			assert(format_count >= 1);
+			format = formats[0].format;
+		}
+		color_space = formats[0].colorSpace;
+
+		free(formats);
+	}
+
+	{
+		const VkCommandBufferAllocateInfo cmd = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.commandPool = cmd_pool,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1,
+		};
+		err = vkAllocateCommandBuffers(vulkan->Device, &cmd, &vulkan->DrawCmd);
+		assert(!err);
+	}
+
+	uint32_t swapchain_image_count;
+	{
+		VkSurfaceCapabilitiesKHR surf_cap;
+		err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surf_cap);
+		assert(!err);
+
+		if (surf_cap.currentExtent.width == (uint32_t)-1)
+		{
+			vulkan->SwapchainExtent.width = (uint32_t)width;
+			vulkan->SwapchainExtent.height = (uint32_t)height;
+		}
+		else
+		{
+			vulkan->SwapchainExtent = surf_cap.currentExtent;
+		}
+
+		swapchain_image_count = surf_cap.minImageCount + 1;
+		if ((surf_cap.maxImageCount > 0) && (swapchain_image_count > surf_cap.maxImageCount))
+		{
+			swapchain_image_count = surf_cap.maxImageCount;
+		}
+
+		const VkSwapchainCreateInfoKHR swapchainInfo = {
+			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+			.surface = surface,
+			.minImageCount = swapchain_image_count,
+			.imageFormat = format,
+			.imageColorSpace = color_space,
+			.imageExtent = vulkan->SwapchainExtent,
+			.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			.preTransform = surf_cap.currentTransform,
+			.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+			.imageArrayLayers = 1,
+			.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.presentMode = VK_PRESENT_MODE_FIFO_KHR,
+			.clipped = 1,
+		};
+
+		err = vkCreateSwapchainKHR(vulkan->Device, &swapchainInfo, NULL, &vulkan->Swapchain);
+		assert(!err);
+	}
+
+	vulkan->Buffers = calloc(swapchain_image_count, sizeof(struct eng_BufferInfo));
+
+	{
+		err = vkGetSwapchainImagesKHR(vulkan->Device, vulkan->Swapchain, &swapchain_image_count, 0);
+		assert(!err);
+		VkImage* swapchain_images = calloc(swapchain_image_count, sizeof(VkImage));
+		err = vkGetSwapchainImagesKHR(vulkan->Device, vulkan->Swapchain, &swapchain_image_count, swapchain_images);
+		assert(!err);
+		for (uint32_t i = 0; i < swapchain_image_count; i++)
+		{
+			vulkan->Buffers[i].image = swapchain_images[i];
+		}
+		free(swapchain_images);
+	}
+
+	for (uint32_t i = 0; i < swapchain_image_count; i++)
+	{
+		VkImageViewCreateInfo color_attachment_view = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.format = format,
+			.components = {
+				.r = VK_COMPONENT_SWIZZLE_R,
+				.g = VK_COMPONENT_SWIZZLE_G,
+				.b = VK_COMPONENT_SWIZZLE_B,
+				.a = VK_COMPONENT_SWIZZLE_A,
+			},
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1
+			},
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.image = vulkan->Buffers[i].image,
+		};
+
+		err = vkCreateImageView(vulkan->Device, &color_attachment_view, NULL, &vulkan->Buffers[i].view);
+		assert(!err);
+	}
+
+	const VkAttachmentDescription attachments[1] = {
+		[0] = {
+			.format = format,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		},
+	};
+	const VkAttachmentReference color_reference = {
+		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+	const VkSubpassDescription subpass = {
+		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+		.colorAttachmentCount = 1,
+		.pColorAttachments = &color_reference,
+	};
+	const VkRenderPassCreateInfo rp_info = {
+		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+		.attachmentCount = 1,
+		.pAttachments = attachments,
+		.subpassCount = 1,
+		.pSubpasses = &subpass,
+	};
+
+	err = vkCreateRenderPass(vulkan->Device, &rp_info, NULL, &vulkan->RenderPass);
+	assert(!err);
+
+	for (uint32_t i = 0; i < swapchain_image_count; i++)
+	{
+		VkImageView attachments[1] = {
+			[0] = vulkan->Buffers[i].view,
+		};
+
+		const VkFramebufferCreateInfo fb_info = {
+			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+			.renderPass = vulkan->RenderPass,
+			.attachmentCount = 1,
+			.pAttachments = attachments,
+			.width = vulkan->SwapchainExtent.width,
+			.height = vulkan->SwapchainExtent.height,
+			.layers = 1,
+		};
+
+		err = vkCreateFramebuffer(vulkan->Device, &fb_info, NULL, &vulkan->Buffers[i].fb);
+		assert(!err);
+	}
 	return true;
 }
 
-VkInstance eng_VulkanGetInstance(struct eng_Vulkan* vulkan) 
+VkInstance eng_VulkanGetInstance(struct eng_Vulkan* vulkan)
 {
 	return vulkan->Instance;
 }
 
-
-////////////////////////////////////////////////////////////////////////// Internal
-
-bool eng_VulkanCreateInstanceInternal(struct eng_Vulkan* vulkan)
+void eng_VulkanUpdate(struct eng_Vulkan* vulkan)
 {
-	struct VkApplicationInfo appInfo = { 0 };
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pNext = NULL;
-	appInfo.pApplicationName = "Improved Succotash Demo";
-	appInfo.applicationVersion = 0;
-	appInfo.pEngineName = "Improved Succotash";
-	appInfo.engineVersion = 0;
-	appInfo.apiVersion = VK_API_VERSION_1_0;
-
-	struct VkInstanceCreateInfo createInfo = { 0 };
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pNext = NULL;
-	createInfo.flags = 0;
-	createInfo.pApplicationInfo = &appInfo;
-	createInfo.enabledLayerCount = 0;
-	createInfo.ppEnabledLayerNames = NULL;
-	
-	createInfo.enabledExtensionCount = vulkan->ExtensionsList.Count;
-	createInfo.ppEnabledExtensionNames = vulkan->ExtensionsList.Buffer;
-
-	VkResult result = vkCreateInstance(&createInfo, NULL, &vulkan->Instance);
-	eng_VulkanEnsure(result, "create vulkan instance");
-
-	return true;
-}
-
-bool eng_VulkanEnumerateDevices(struct eng_Vulkan* vulkan) 
-{
-	VkResult result = vkEnumeratePhysicalDevices(vulkan->Instance, &vulkan->PhysicalDevicesCount, NULL);
-	eng_VulkanEnsure(result, "enumerate physical devices");
-
-	if (!eng_Ensure(vulkan->PhysicalDevicesCount != 0, "No GPU was found.")) {
-		return false;
-	}
-
-	vulkan->PhysicalDevices = calloc(vulkan->PhysicalDevicesCount, sizeof(VkPhysicalDevice));
-	memset(vulkan->PhysicalDevices, 0, vulkan->PhysicalDevicesCount*sizeof(VkPhysicalDevice));
-	result = vkEnumeratePhysicalDevices(vulkan->Instance, &vulkan->PhysicalDevicesCount, vulkan->PhysicalDevices);
-	eng_VulkanEnsure(result, "enumerate physical devices");
-
-	return true;
-}
-
-// TODO: Currently device selection finds an discrete device if there is one, and then 
-// prioritizes highest memory. This criteria considers all non-discrete devices equal
-// and should likely re-prioritize each of these non-discrete devices.
-// A better performance metric than memory may also be used if possible.
-bool eng_VulkanSelectDevice(struct eng_Vulkan* vulkan)
-{
-	VkQueueFamilyProperties* families;
-	uint32_t familiesCount;
-
-	vulkan->PhysicalDevice = 0; // Start off with no selected device.
-	uint32_t bestDeviceQueueCount = 0;
-
-	// Tohelp us in the device selection process.
-	bool hasFoundDescreteGpu = false;
-	VkDeviceSize descreteGpuHighestMem = 0;
-	VkDeviceSize integratedGpuHighestMem = 0;
-
-	for (uint32_t i = 0; i < vulkan->PhysicalDevicesCount; ++i) {
-		VkPhysicalDevice device = vulkan->PhysicalDevices[i];
-		
-		vkGetPhysicalDeviceQueueFamilyProperties(device, &familiesCount, NULL);
-		if (familiesCount == 0)
-		{
-			continue;
-		}
-
-		families = calloc(familiesCount, sizeof(VkQueueFamilyProperties));
-		vkGetPhysicalDeviceQueueFamilyProperties(device, &familiesCount, families);
-
-
-		VkQueueFamilyProperties* selectedFamily = NULL;
-		uint32_t familyIndex;
-		uint32_t presentFamilyIndex = UINT32_MAX;
-		for (familyIndex = 0; familyIndex < familiesCount; ++familyIndex)
-		{
-			if (vulkan->RequiresPresent)
-			{
-				VkBool32 supportsPresent;
-				vkGetPhysicalDeviceSurfaceSupportKHR(device, familyIndex, vulkan->Surface, &supportsPresent);
-				if (!supportsPresent)
-				{
-					presentFamilyIndex = familyIndex;
-				}
-			}
-
-			if (vulkan->RequiresGraphics && !(families[familyIndex].queueFlags & VK_QUEUE_GRAPHICS_BIT))
-			{
-				continue;
-			}
-			
-			if (vulkan->RequiresCompute && !(families[familyIndex].queueFlags & VK_QUEUE_COMPUTE_BIT))
-			{
-				continue;
-			}
-
-			selectedFamily = &families[familyIndex];
-			break;
-		}
-
-
-		if (selectedFamily == NULL)
-		{
-			free(families);
-			continue;
-		}
-
-		bool isDiscrete = false;
-		VkPhysicalDeviceProperties properties;
-		vkGetPhysicalDeviceProperties(device, &properties);
-		isDiscrete = properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
-
-		// Don't bother, we already have a discrete device to pick from.
-		if (hasFoundDescreteGpu && !isDiscrete)
-		{
-			free(families);
-			continue;
-		}
-		hasFoundDescreteGpu = isDiscrete;
-		
-		VkPhysicalDeviceMemoryProperties memProperties;
-		vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
-		VkDeviceSize mem = 0;
-		for (uint32_t j = 0; j < memProperties.memoryHeapCount; ++j) 
-		{
-			mem += memProperties.memoryHeaps[j].size;
-		}
-
-		bool isBestDevice = false;
-		if (isDiscrete)
-		{
-			if (mem > descreteGpuHighestMem)
-			{
-				descreteGpuHighestMem = mem;
-				isBestDevice = true;
-			}
-		}
-		else
-		{
-			if (mem > integratedGpuHighestMem)
-			{
-				integratedGpuHighestMem = mem;
-				isBestDevice = true;
-			}
-		}
-
-		if (isBestDevice && (!vulkan->RequiresPresent || presentFamilyIndex != UINT32_MAX))
-		{
-			vulkan->PhysicalDevice = device;
-			vulkan->QueueFamilyIndex = familyIndex;
-			memcpy(&vulkan->MemoryProperties, &memProperties, sizeof(VkPhysicalDeviceMemoryProperties));
-			bestDeviceQueueCount = selectedFamily->queueCount;
-		}
-
-		free(families);
-	}
-
-	if (!eng_Ensure(vulkan->PhysicalDevice, "No suitable vulkan device found.\n"))
+	VkResult err;
+	VkSemaphore present_complete_semaphore;
 	{
-		return false;
+		VkSemaphoreCreateInfo semaphore_create_info = {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+		};
+		err = vkCreateSemaphore(vulkan->Device, &semaphore_create_info, NULL, &present_complete_semaphore);
+		assert(!err);
 	}
 
-	// HACK: For simplicity while setting up and testing vulkan, I've set the queue to one.
-	// TODO: Play with using the available queues, and see the impact around designing for
-	// different queue values. Investigate the implications and make an informed decision.
-	bestDeviceQueueCount = 1;
+	uint32_t current_buffer;
+	err = vkAcquireNextImageKHR(vulkan->Device, vulkan->Swapchain, UINT64_MAX, present_complete_semaphore, (VkFence)0, &current_buffer);
+	assert(!err);
 
-	vulkan->QueueCount = bestDeviceQueueCount;
-	vulkan->QueuePriorities = calloc(bestDeviceQueueCount, sizeof(float));
-	memset(vulkan->QueuePriorities, 0, bestDeviceQueueCount * sizeof(float));
-
-	return true;
-}
-
-bool eng_VulkanCreateLogicalDevice(struct eng_Vulkan* vulkan)
-{
-	VkDeviceQueueCreateInfo queueInfo;
-	queueInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-	queueInfo.pNext = NULL;
-	queueInfo.queueCount = vulkan->QueueCount;
-	queueInfo.pQueuePriorities = vulkan->QueuePriorities;
-
-	VkDeviceCreateInfo deviceInfo;
-	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	deviceInfo.pNext = NULL;
-	deviceInfo.queueCreateInfoCount = 1;
-	deviceInfo.pQueueCreateInfos = &queueInfo;
-	deviceInfo.enabledExtensionCount = 0;
-	deviceInfo.ppEnabledExtensionNames = NULL;
-	deviceInfo.enabledLayerCount = 0;
-	deviceInfo.ppEnabledLayerNames = NULL;
-	deviceInfo.pEnabledFeatures = NULL;
-
-	VkResult result = vkCreateDevice(vulkan->PhysicalDevice, &deviceInfo, NULL, &vulkan->LogicalDevice);
-	eng_VulkanEnsure(result, "create logical device");
-	return true;
-}
-
-bool eng_VulkanCreateCommandBuffer(struct eng_Vulkan* vulkan)
-{
-	VkCommandPoolCreateInfo poolInfo;
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.pNext = NULL;
-	poolInfo.queueFamilyIndex = vulkan->QueueFamilyIndex;
-	poolInfo.flags = 0;
-	
-	VkResult result = vkCreateCommandPool(vulkan->LogicalDevice, &poolInfo, NULL, &vulkan->CommandPool);
-	eng_VulkanEnsure(result, "create command pool");
-
-	/* Create the command buffer from the command pool */
-	VkCommandBufferAllocateInfo poolAllocateInfo;
-	poolAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	poolAllocateInfo.pNext = NULL;
-	poolAllocateInfo.commandPool = vulkan->CommandPool;
-	poolAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	poolAllocateInfo.commandBufferCount = 1;
-
-	result = vkAllocateCommandBuffers(vulkan->LogicalDevice, &poolAllocateInfo, &vulkan->Command);
-	eng_VulkanEnsure(result, "allocate command buffers");
-
-	return true;
-}
-
-bool eng_VulkanDetermineDeviceSurfaceCapability(struct eng_Vulkan* vulkan)
-{
-	uint32_t formatCount;
-	VkResult result = vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan->PhysicalDevice, vulkan->Surface, &formatCount, NULL);
-	eng_VulkanEnsure(result, "get physical device surface formats");
-
-	VkSurfaceFormatKHR *surfFormats = calloc(formatCount, sizeof(VkSurfaceFormatKHR));
-	result = vkGetPhysicalDeviceSurfaceFormatsKHR(vulkan->PhysicalDevice, vulkan->Surface, &formatCount, surfFormats);
-	eng_VulkanEnsure(result, "get physical device surface formats");
-
-	if (formatCount == 1 && surfFormats[0].format == VK_FORMAT_UNDEFINED)
-	{
-		vulkan->SurfaceFormat = VK_FORMAT_B8G8R8A8_UNORM;
-	}
-	else
-	{
-		// TODO: Should we be selecting a better surface format based on some criteria?
-		vulkan->SurfaceFormat = surfFormats[0].format;
-	}
-	vulkan->SurfaceColorSpace = surfFormats[0].colorSpace;
-
-	eng_Log("Vulkan surface format selected: %s\n", eng_InternalVKFormatToString(vulkan->SurfaceFormat));
-
-	free(surfFormats);
-
-	result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan->PhysicalDevice, vulkan->Surface, &vulkan->SurfaceCapabilities);
-	eng_VulkanEnsure(result, "get surface capabilities");
-
-	VkExtent2D swapchainExtent = { (uint32_t)vulkan->Width, (uint32_t)vulkan->Height };
-	// width and height are either both 0xffffffff, or both not 0xffffffff
-	if (vulkan->SurfaceCapabilities.currentExtent.width == 0xffffffff)
-	{
-		if (swapchainExtent.width < vulkan->SurfaceCapabilities.minImageExtent.width)
-		{
-			eng_Warn("The graphics card can't render to a surface with the size we requested. "
-					"Requested width: %d, minimum width: %d\n", 
-					swapchainExtent.width, vulkan->SurfaceCapabilities.minImageExtent.width);
-			swapchainExtent.width = vulkan->SurfaceCapabilities.minImageExtent.width;
-		}
-		else if (swapchainExtent.width > vulkan->SurfaceCapabilities.maxImageExtent.width)
-		{
-			eng_Warn("The graphics card can't render to a surface with the size we requested. "
-					"Requested width: %d, maximum width: %d\n", 
-					swapchainExtent.width, vulkan->SurfaceCapabilities.minImageExtent.width);
-			swapchainExtent.width = vulkan->SurfaceCapabilities.minImageExtent.width;
-		}
-
-		if (swapchainExtent.height < vulkan->SurfaceCapabilities.minImageExtent.height)
-		{
-			eng_Warn("The graphics card can't render to a surface with the size we requested. "
-					"Requested height: %d, minimum height: %d\n", 
-					swapchainExtent.height, vulkan->SurfaceCapabilities.minImageExtent.height);
-			swapchainExtent.height = vulkan->SurfaceCapabilities.minImageExtent.height;
-		}
-		else if (swapchainExtent.height > vulkan->SurfaceCapabilities.maxImageExtent.height)
-		{
-			eng_Warn("The graphics card can't render to a surface with the size we requested. "
-					"Requested height: %d, maximum height: %d\n", 
-					swapchainExtent.height, vulkan->SurfaceCapabilities.minImageExtent.height);
-			swapchainExtent.height = vulkan->SurfaceCapabilities.minImageExtent.height;
-		}
-	}
-	else
-	{
-		swapchainExtent = vulkan->SurfaceCapabilities.currentExtent;
-	}
-
-	if (swapchainExtent.width > UINT16_MAX)
-	{
-		eng_Err("Swapchain extent width is larger than uint16 max. Our renderer isn't configured to handle that.");
-		swapchainExtent.width = UINT16_MAX;
-	}
-
-	if (swapchainExtent.height > UINT16_MAX)
-	{
-		eng_Err("Swapchain extent height is larger than uint16 max. Our renderer isn't configured to handle that.");
-		swapchainExtent.height = UINT16_MAX;
-	}
-
-	vulkan->Width = (uint32_t)swapchainExtent.width;
-	vulkan->Height = (uint32_t)swapchainExtent.height;
-
-	// The FIFO present mode is guaranteed by the spec to be supported
-	// and to have no tearing.  It's a great default present mode to use.
-	vulkan->PresentMode = VK_PRESENT_MODE_FIFO_KHR;
-
-	// Currently we take no action to select a preferred present mode.
-	/*
-	uint32_t presentModesCount;
-	result = vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan->PhysicalDevice, vulkan->Surface, &presentModesCount, NULL);
-	eng_VulkanEnsure("get physical device surface present modes");
-
-	VkPresentModeKHR* presentModes = calloc(presentModesCount, sizeof(VkPresentModeKHR));
-	result = vkGetPhysicalDeviceSurfacePresentModesKHR(vulkan->PhysicalDevice, vulkan->Surface, &presentModesCount, presentModes);
-	eng_VulkanEnsure("get physical device surface present modes");
-	*/
-
-	return true;
-}
-
-bool eng_VulkanDestroySwapChain(struct eng_Vulkan* vulkan) {
-	if (vulkan->SwapChain != VK_NULL_HANDLE)
-	{
-		// Todo: set a better timeout value.
-		VkResult result = vkWaitForFences(vulkan->LogicalDevice, vulkan->FenceCount, vulkan->Fences, VK_TRUE, UINT64_MAX);
-		eng_VulkanEnsure(result, "wait for fences");
-
-		vkDestroySwapchainKHR(vulkan->LogicalDevice, vulkan->SwapChain, NULL);
-		vulkan->SwapChain = VK_NULL_HANDLE;
-
-		// TODO: null associated images as well. the swapchain will destroy them when the platform is done with them.
-	}
-	return true;
-}
-
-bool eng_VulkanCreateSwapchain(struct eng_Vulkan* vulkan)
-{
-	uint32_t desiredNumberOfSwapchainImages = 3;
-
-	if (desiredNumberOfSwapchainImages < vulkan->SurfaceCapabilities.minImageCount)
-	{
-		eng_Err("Desired number of swapchain images is lower than the minimum ammount. Desired: %d, minimum: %d", 
-				desiredNumberOfSwapchainImages,
-				vulkan->SurfaceCapabilities.minImageCount);
-		desiredNumberOfSwapchainImages = vulkan->SurfaceCapabilities.minImageCount;
-	}
-	else if (desiredNumberOfSwapchainImages > vulkan->SurfaceCapabilities.maxImageCount)
-	{
-		eng_Err("Desired number of swapchain images is higher than the maximum ammount. Desired: %d, maximum: %d", 
-				desiredNumberOfSwapchainImages,
-				vulkan->SurfaceCapabilities.minImageCount);
-		desiredNumberOfSwapchainImages = vulkan->SurfaceCapabilities.maxImageCount;
-	}
-
-	eng_Log("Vulkan using %d images in swapchain. min: %d, max: %d\n", 
-			desiredNumberOfSwapchainImages,
-			vulkan->SurfaceCapabilities.minImageCount,
-			vulkan->SurfaceCapabilities.maxImageCount);
-
-	VkSurfaceTransformFlagsKHR preTransform;
-	if (vulkan->SurfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
-	{
-		preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-	}
-	else
-	{
-		preTransform = vulkan->SurfaceCapabilities.currentTransform;
-	}
-
-	// Find a supported composite alpha mode - one of these is guaranteed to be set
-	VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] = {
-		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-		VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
-		VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
-		VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+	const VkCommandBufferBeginInfo cmd_buf_info = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+	};
+	const VkClearValue clear_values[1] = {
+		[0] = {.color.float32 = {  100.f/255.f, 149.f/255.f, 237.f/255.f, .2f } },
 	};
 
-	for (size_t i = 0; i < sizeof(compositeAlphaFlags); ++i)
-	{
-		if (vulkan->SurfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i])
-		{
-			compositeAlpha = compositeAlphaFlags[i];
-			break;
-		}
-	}
+	const VkRenderPassBeginInfo rp_begin = {
+		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+		.renderPass = vulkan->RenderPass,
+		.framebuffer = vulkan->Buffers[current_buffer].fb,
+		.renderArea.extent = vulkan->SwapchainExtent,
+		.clearValueCount = 1,
+		.pClearValues = clear_values,
+	};
 
-	VkSwapchainCreateInfoKHR swapchainInfo;
-	swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	swapchainInfo.pNext = NULL;
-	swapchainInfo.surface = vulkan->Surface;
-	swapchainInfo.minImageCount = desiredNumberOfSwapchainImages;
-	swapchainInfo.imageFormat = vulkan->SurfaceFormat;
-	swapchainInfo.imageColorSpace = vulkan->SurfaceColorSpace;
-	swapchainInfo.imageExtent.width = (uint32_t)vulkan->Width;
-	swapchainInfo.imageExtent.height = (uint32_t)vulkan->Height;
-	swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	swapchainInfo.preTransform = preTransform;
-	swapchainInfo.compositeAlpha = compositeAlpha;
-	swapchainInfo.imageArrayLayers = 1;
-	swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	swapchainInfo.queueFamilyIndexCount = 0;
-	swapchainInfo.pQueueFamilyIndices = NULL;
-	swapchainInfo.presentMode = vulkan->PresentMode;
-	swapchainInfo.oldSwapchain = VK_NULL_HANDLE;
-	swapchainInfo.clipped = true;
+	err = vkBeginCommandBuffer(vulkan->DrawCmd, &cmd_buf_info);
+	assert(!err);
 
-	if (vulkan->SwapChain != VK_NULL_HANDLE) {
-		if (!eng_Ensure(eng_VulkanDestroySwapChain(vulkan), "Could not destroy swapchain."))
-		{
-			return false;
-		}
-	}
+	VkImageMemoryBarrier image_memory_barrier = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		.srcAccessMask = 0,
+		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+		.image = vulkan->Buffers[current_buffer].image,
+	};
 
-	VkResult result = vkCreateSwapchainKHR(vulkan->LogicalDevice, &swapchainInfo, NULL, &vulkan->SwapChain);
-	eng_VulkanEnsure(result, "create swap chain");
+	vkCmdPipelineBarrier(
+		vulkan->DrawCmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+		0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 
-	return true;
-}
+	vkCmdBeginRenderPass(vulkan->DrawCmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdEndRenderPass(vulkan->DrawCmd);
 
-bool eng_VulkanCreateDepthBuffer(struct eng_Vulkan* vulkan)
-{
+	VkImageMemoryBarrier present_barrier = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+		.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
+		.image = vulkan->Buffers[current_buffer].image,
+	};
 
-	VkImageCreateInfo imageInfo;
-	const VkFormat depthFormat = VK_FORMAT_D16_UNORM;
-	VkFormatProperties props;
-	vkGetPhysicalDeviceFormatProperties(vulkan->PhysicalDevice, depthFormat, &props);
-	if (props.linearTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
-	{
-		imageInfo.tiling = VK_IMAGE_TILING_LINEAR;
-	}
-	else if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
-	{
-		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	}
+	vkCmdPipelineBarrier(
+		vulkan->DrawCmd, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+		0, 0, NULL, 0, NULL, 1, &present_barrier);
+
+	err = vkEndCommandBuffer(vulkan->DrawCmd);
+	assert(!err);
+
+	VkPipelineStageFlags pipe_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+	VkSubmitInfo submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &vulkan->DrawCmd,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &present_complete_semaphore,
+		.pWaitDstStageMask = &pipe_stage_flags,
+	};
+
+	err = vkQueueSubmit(vulkan->Queue, 1, &submit_info, VK_NULL_HANDLE);
+	assert(!err);
+
+	VkPresentInfoKHR present = {
+		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.swapchainCount = 1,
+		.pSwapchains = &vulkan->Swapchain,
+		.pImageIndices = &current_buffer,
+	};
+	err = vkQueuePresentKHR(vulkan->Queue, &present);
+	if (err == VK_SUBOPTIMAL_KHR)
+		eng_Log("warning: suboptimal present\n");
 	else
-	{
-		eng_DevFatal("Format unsupported");
-	}
-
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.pNext = NULL;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.format = depthFormat;
-	imageInfo.extent.width = vulkan->Width;
-	imageInfo.extent.height = vulkan->Height;
-	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = 1;
-	imageInfo.arrayLayers = 1;
-	imageInfo.samples = SAMPLE_COUNT;
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-	imageInfo.queueFamilyIndexCount = 0;
-	imageInfo.pQueueFamilyIndices = NULL;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	imageInfo.flags = 0;
-
-	VkMemoryAllocateInfo memAlloc;
-	memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memAlloc.pNext = NULL;
-	memAlloc.allocationSize = 0;
-	memAlloc.memoryTypeIndex = 0;
-
-	VkImageViewCreateInfo viewInfo;
-	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	viewInfo.pNext = NULL;
-	viewInfo.image = VK_NULL_HANDLE;
-	viewInfo.format = depthFormat;
-	viewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-	viewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-	viewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-	viewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-	viewInfo.subresourceRange.baseMipLevel = 0;
-	viewInfo.subresourceRange.levelCount = 1;
-	viewInfo.subresourceRange.baseArrayLayer = 0;
-	viewInfo.subresourceRange.layerCount = 1;
-	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	viewInfo.flags = 0;
-
-	VkMemoryRequirements memReqs;
+		assert(!err);
 
 	
-	vulkan->Depth.Format = depthFormat;
 
-	/* Create image */
-	VkResult result = vkCreateImage(vulkan->LogicalDevice, &imageInfo, NULL, &vulkan->Depth.Image);
-	eng_VulkanEnsure(result, "create image");
+	err = vkQueueWaitIdle(vulkan->Queue);
+	assert(err == VK_SUCCESS);
 
-	vkGetImageMemoryRequirements(vulkan->LogicalDevice, vulkan->Depth.Image, &memReqs);
-
-	memAlloc.allocationSize = memReqs.size;
-
-	uint32_t typeBits = memReqs.memoryTypeBits;
-	uint32_t requirements_mask = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	bool foundMemoryRequirements = false;
-	for (uint32_t i = 0; i < vulkan->MemoryProperties.memoryTypeCount; i++)
-	{
-		if ((typeBits & 1) == 1)
-		{
-			// Type is available, does it match user properties?
-			if ((vulkan->MemoryProperties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask)
-			{
-				memAlloc.memoryTypeIndex = i;
-				foundMemoryRequirements = true;
-				break;
-			}
-		}
-		typeBits >>= 1;
-	}
-
-	if (!eng_Ensure(foundMemoryRequirements, "Couldn't get memory type from properties"))
-	{
-		return false;
-	}
-
-	result = vkAllocateMemory(vulkan->LogicalDevice, &memAlloc, NULL, &vulkan->Depth.Mem);
-	eng_VulkanEnsure(result, "allocate image memory");
-
-	result = vkBindImageMemory(vulkan->LogicalDevice, vulkan->Depth.Image, vulkan->Depth.Mem, 0);
-	eng_VulkanEnsure(result, "bind image memory");
-
-	viewInfo.image = vulkan->Depth.Image;
-	result = vkCreateImageView(vulkan->LogicalDevice, &viewInfo, NULL, &vulkan->Depth.View);
-	eng_VulkanEnsure(result, "create image view");
-
-	return true;
+	vkDestroySemaphore(vulkan->Device, present_complete_semaphore, NULL);
 }
+
+
+////////////////////////////////////////////////////////////////////////// Internal
