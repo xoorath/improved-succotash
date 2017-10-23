@@ -14,7 +14,7 @@ extern "C" {
 	 * @note The url is not ready for use until eng_IniRInit is called.
 	 * @return A newly allocated ini.
 	 */
-	struct eng_IniR* eng_IniRMalloc();
+	struct eng_IniR* eng_IniRMalloc(void);
 
 	/**
 	 * Ini (readable) Init
@@ -38,7 +38,7 @@ extern "C" {
 	 * @return the sizeof the internal eng_Url object, for use with custom
 	 * allocators.
 	 */
-	size_t eng_IniRGetSizeof();
+	size_t eng_IniRGetSizeof(void);
 
 	////////////////////////////////////////////////////////////////////////// Ini API
 

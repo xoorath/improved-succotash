@@ -72,4 +72,7 @@
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include=".editorconfig" />
+  </ItemGroup>
 </Project>

@@ -15,7 +15,7 @@ extern "C" {
 	 * called.
 	 * @return A newly allocated stopwatch.
 	 */
-	struct eng_Stopwatch* eng_StopwatchMalloc();
+	struct eng_Stopwatch* eng_StopwatchMalloc(void);
 
 	/**
 	 * Stopwatch Init
@@ -39,7 +39,7 @@ extern "C" {
 	 * @return the sizeof the internal eng_Stopwatch object, for use with
 	 * custom allocators.
 	 */
-	unsigned eng_StopwatchGetSizeof();
+	unsigned eng_StopwatchGetSizeof(void);
 
 	////////////////////////////////////////////////////////////////////////// Stopwatch API
 	/**

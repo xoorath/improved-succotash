@@ -66,7 +66,7 @@ struct eng_Vulkan
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 
-struct eng_Vulkan* eng_VulkanMalloc()
+struct eng_Vulkan* eng_VulkanMalloc(void)
 {
 	return malloc(sizeof(struct eng_Vulkan));
 }
@@ -96,7 +96,7 @@ void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly)
 	}
 }
 
-size_t eng_VulkanGetSizeof()
+size_t eng_VulkanGetSizeof(void)
 {
 	return sizeof(struct eng_Vulkan);
 }

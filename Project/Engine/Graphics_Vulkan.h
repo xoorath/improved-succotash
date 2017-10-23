@@ -11,7 +11,7 @@ extern "C" {
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 
-struct eng_Vulkan* eng_VulkanMalloc();
+struct eng_Vulkan* eng_VulkanMalloc(void);
 /** 
  * @Note initialization is not fully complete until eng_VulkanGetInstance
  * is called after appropriate setup is done. A common way for this setup 
@@ -21,7 +21,7 @@ struct eng_Vulkan* eng_VulkanMalloc();
  */
 bool eng_VulkanInit(struct eng_Vulkan* vulkan);
 void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly);
-size_t eng_VulkanGetSizeof();
+size_t eng_VulkanGetSizeof(void);
 
 ////////////////////////////////////////////////////////////////////////// Configuration API
 void eng_VulkanProvideExtensions(struct eng_Vulkan* vulkan, const char** extensions, uint32_t extensionsCount);

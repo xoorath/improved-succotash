@@ -15,7 +15,7 @@ extern "C" {
 	 * Call once and only once at application startup.
 	 * @returns true on successful initialization.
 	 */
-	bool eng_UrlGlobalInit();
+	bool eng_UrlGlobalInit(void);
 
 	/**
 	 * Url Global Shutdown.
@@ -23,7 +23,7 @@ extern "C" {
 	 * Call one and only once at application shutdown.
 	 * @note initialization does not need to be successful for this call to be safe.
 	 */
-	void eng_UrlGlobalShutdown();
+	void eng_UrlGlobalShutdown(void);
 
 	/**
 	 * Url Malloc
@@ -31,7 +31,7 @@ extern "C" {
 	 * @note The url is not ready for use until eng_UrlInit is called.
 	 * @return A newly allocated url.
 	 */
-	struct eng_Url* eng_UrlMalloc();
+	struct eng_Url* eng_UrlMalloc(void);
 
 	/**
 	 * Url Init
@@ -55,7 +55,7 @@ extern "C" {
 	 * @return the sizeof the internal eng_Url object, for use with custom
 	 * allocators.
 	 */
-	size_t eng_UrlGetSizeof();
+	size_t eng_UrlGetSizeof(void);
 
 	////////////////////////////////////////////////////////////////////////// Url API
 

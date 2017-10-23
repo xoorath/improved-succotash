@@ -48,7 +48,7 @@ void eng_WindowCallbackListUnbind(struct eng_Array* callbackList, eng_WindowCall
 void eng_WindowCallbackListExec(struct eng_Array* callbackList);
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
-bool eng_WindowGlobalInit()
+bool eng_WindowGlobalInit(void)
 {
 	if (glfwInit())
 	{
@@ -73,12 +73,12 @@ bool eng_WindowGlobalInit()
 	return false;
 }
 
-void eng_WindowGlobalShutdown()
+void eng_WindowGlobalShutdown(void)
 {
 	glfwTerminate();
 }
 
-struct eng_Window* eng_WindowMalloc()
+struct eng_Window* eng_WindowMalloc(void)
 {
 	return malloc(sizeof(struct eng_Window));
 }
@@ -120,7 +120,7 @@ bool eng_WindowInit(struct eng_Window* window, uint16_t width, uint16_t height, 
 	return true;
 }
 
-size_t eng_WindowGetSizeof()
+size_t eng_WindowGetSizeof(void)
 {
 	return sizeof(struct eng_Window);
 }

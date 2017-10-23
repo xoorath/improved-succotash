@@ -42,7 +42,7 @@ struct eng_IniR
 uint32_t eng_IniRCountSections(struct eng_IniR* ini);
 void eng_IniRInitSections(struct eng_IniR* ini);
 
-struct eng_IniR* eng_IniRMalloc()
+struct eng_IniR* eng_IniRMalloc(void)
 {
 	return malloc(sizeof(struct eng_IniR));
 }
@@ -130,7 +130,7 @@ void eng_IniRFree(struct eng_IniR* ini, bool subAllocationsOnly)
 	}
 }
 
-size_t eng_IniRGetSizeof()
+size_t eng_IniRGetSizeof(void)
 {
 	return sizeof(struct eng_IniR);
 }

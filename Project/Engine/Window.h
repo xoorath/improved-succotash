@@ -15,7 +15,7 @@ extern "C" {
 	* Call once and only once at application startup.
 	* @returns true on successful initialization.
 	*/
-	bool eng_WindowGlobalInit();
+	bool eng_WindowGlobalInit(void);
 
 	/**
 	* Window Global Shutdown.
@@ -23,7 +23,7 @@ extern "C" {
 	* Call one and only once at application shutdown.
 	* @note initialization does not need to be successful for this call to be safe.
 	*/
-	void eng_WindowGlobalShutdown();
+	void eng_WindowGlobalShutdown(void);
 
 	/**
 	 * Window Malloc
@@ -31,7 +31,7 @@ extern "C" {
 	 * @note The window is not ready for use until eng_WindowInit is called.
 	 * @return A newly allocated window.
 	 */
-	struct eng_Window* eng_WindowMalloc();
+	struct eng_Window* eng_WindowMalloc(void);
 
 	/**
 	* Window Init
@@ -56,7 +56,7 @@ extern "C" {
 	* @return the sizeof the internal eng_Window object, for use with
 	* custom allocators.
 	*/
-	size_t eng_WindowGetSizeof();
+	size_t eng_WindowGetSizeof(void);
 
 	////////////////////////////////////////////////////////////////////////// Window API
 	/**
@@ -91,7 +91,7 @@ extern "C" {
 	/** @returns true if the window supports vulkan. */
 	bool eng_WindowSupportsVulkan(struct eng_Window* window);
 	/** @returns true if binding vulkan was a success. */
-	bool eng_WindowBindVulkan(struct eng_Window* window, struct eng_Vulkan* vulkan);;
+	bool eng_WindowBindVulkan(struct eng_Window* window, struct eng_Vulkan* vulkan);
 
 	////////////////////////////////////////////////////////////////////////// Callbacks
 	

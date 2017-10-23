@@ -20,7 +20,7 @@ struct eng_Stopwatch
 #define SEC_TO_PS(s) ((s) * 1e+12)
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
-struct eng_Stopwatch* eng_StopwatchMalloc()
+struct eng_Stopwatch* eng_StopwatchMalloc(void)
 {
 	return malloc(sizeof(struct eng_Stopwatch));
 }
@@ -43,7 +43,7 @@ void eng_StopwatchFree(struct eng_Stopwatch* stopwatch, bool subAllocationsOnly)
 	}
 }
 
-unsigned eng_StopwatchGetSizeof() {
+unsigned eng_StopwatchGetSizeof(void) {
 	return sizeof(struct eng_Stopwatch);
 }
 

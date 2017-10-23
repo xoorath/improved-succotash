@@ -11,7 +11,7 @@ struct eng_Url
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 
-bool eng_UrlGlobalInit()
+bool eng_UrlGlobalInit(void)
 {
 	CURLcode result = curl_global_init(CURL_GLOBAL_DEFAULT);
 	if (result != CURLE_OK)
@@ -22,12 +22,12 @@ bool eng_UrlGlobalInit()
 	return true;
 }
 
-void eng_UrlGlobalShutdown()
+void eng_UrlGlobalShutdown(void)
 {
 	curl_global_cleanup();
 }
 
-struct eng_Url* eng_UrlMalloc()
+struct eng_Url* eng_UrlMalloc(void)
 {
 	return malloc(sizeof(struct eng_Url));
 }
@@ -41,6 +41,7 @@ bool eng_UrlInit(struct eng_Url* engUrl, const char* url)
 		return false;
 	}
 
+	curl_easy_setopt(engUrl->curl, CURLOPT_SSL_VERIFYPEER, FALSE);
 	curl_easy_setopt(engUrl->curl, CURLOPT_USERAGENT, "Mozilla/5.0...");
 	curl_easy_setopt(engUrl->curl, CURLOPT_URL, url);
 
@@ -56,7 +57,7 @@ void eng_UrlFree(struct eng_Url* engUrl, bool subAllocationsOnly)
 	}
 }
 
-size_t eng_UrlGetSizeof()
+size_t eng_UrlGetSizeof(void)
 {
 	return sizeof(struct eng_Url);
 }
@@ -85,8 +86,7 @@ bool eng_UrlTestConnection(struct eng_Url* engUrl)
 bool eng_UrlEasyTestConnection(const char* url)
 {
 	struct eng_Url engUrl;
-	eng_UrlInit(&engUrl, url);
-	bool success = eng_UrlTestConnection(&engUrl);
+	bool success = eng_UrlInit(&engUrl, url) && eng_UrlTestConnection(&engUrl);
 	eng_UrlFree(&engUrl, true);
 	return success;
 }
