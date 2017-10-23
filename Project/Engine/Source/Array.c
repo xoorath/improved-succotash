@@ -10,7 +10,7 @@
 #define INITIAL_ARRAY_SIZE 4
 #define GROWTH_PER_EXCESS 2.0
 
-void eng_ArrayInit(struct eng_Array* array, uint32_t typeSize)
+void eng_ArrayInit(eng_Array* array, uint32_t typeSize)
 {
 	array->TypeSize = typeSize;
 	array->Count = 0;
@@ -18,12 +18,12 @@ void eng_ArrayInit(struct eng_Array* array, uint32_t typeSize)
 	array->Buffer = ENG_ARRAY_CALLOC(array->BufferSize, array->TypeSize);
 }
 
-void eng_ArrayDestroy(struct eng_Array* array)
+void eng_ArrayDestroy(eng_Array* array)
 {
 	free(array->Buffer);
 }
 
-void eng_ArrayReserve(struct eng_Array* array, uint32_t reservation)
+void eng_ArrayReserve(eng_Array* array, uint32_t reservation)
 {
 #if !defined(GAME_FINAL)
 	if (array->BufferSize == reservation)
@@ -51,7 +51,7 @@ void eng_ArrayReserve(struct eng_Array* array, uint32_t reservation)
 	}
 }
 
-void eng_ArrayResize(struct eng_Array* array, uint32_t newSize)
+void eng_ArrayResize(eng_Array* array, uint32_t newSize)
 {
 #if !defined(GAME_FINAL)
 	if (newSize == array->Count)
@@ -70,7 +70,7 @@ void eng_ArrayResize(struct eng_Array* array, uint32_t newSize)
 	}
 }
 
-void* eng_ArrayIndex(struct eng_Array* array, uint32_t index)
+void* eng_ArrayIndex(eng_Array* array, uint32_t index)
 {
 #if !defined(GAME_FINAL)
 	if (index > array->Count)
@@ -81,13 +81,13 @@ void* eng_ArrayIndex(struct eng_Array* array, uint32_t index)
 	return (char*)array->Buffer + (intptr_t)(index * array->TypeSize);
 }
 
-uint32_t eng_ArrayPushBack(struct eng_Array* array, void* object)
+uint32_t eng_ArrayPushBack(eng_Array* array, void* object)
 {
 	eng_ArrayPushBackMany(array, object, 1);
 	return array->Count - 1;
 }
 
-void eng_ArrayPushBackMany(struct eng_Array* array, void* objects, uint32_t count)
+void eng_ArrayPushBackMany(eng_Array* array, void* objects, uint32_t count)
 {
 	uint32_t newCount = array->Count + count;
 	uint32_t requiredBufferSize = newCount * array->TypeSize;
@@ -106,18 +106,17 @@ void eng_ArrayPushBackMany(struct eng_Array* array, void* objects, uint32_t coun
 }
 
 
-
-void* eng_ArrayBegin(struct eng_Array* array)
+void* eng_ArrayBegin(eng_Array* array)
 {
 	return array->Buffer;
 }
 
-void* eng_ArrayEnd(struct eng_Array* array)
+void* eng_ArrayEnd(eng_Array* array)
 {
 	return (char*)array->Buffer + (intptr_t)(array->Count * array->TypeSize);
 }
 
-void eng_ArrayRemoveLastSwap(struct eng_Array* array, uint32_t index)
+void eng_ArrayRemoveLastSwap(eng_Array* array, uint32_t index)
 {
 #if !defined(GAME_FINAL)
 	if (index >= array->Count)
@@ -129,7 +128,7 @@ void eng_ArrayRemoveLastSwap(struct eng_Array* array, uint32_t index)
 	memcpy(element, (char*)array->Buffer + (intptr_t)(--array->Count * array->TypeSize), array->TypeSize);
 }
 
-void eng_ArrayRemoveInPlace(struct eng_Array* array, uint32_t index)
+void eng_ArrayRemoveInPlace(eng_Array* array, uint32_t index)
 {
 #if !defined(GAME_FINAL)
 	if (index >= array->Count)
