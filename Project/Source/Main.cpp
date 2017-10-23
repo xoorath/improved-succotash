@@ -39,7 +39,6 @@ private:
 };
 
 struct eng_Window;
-struct eng_Stopwatch;
 struct eng_Url;
 struct eng_IniR;
 
