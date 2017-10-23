@@ -41,15 +41,15 @@ SOFTWARE.
 #define FENCE_COUNT 2
 #define SAMPLE_COUNT 1
 
-struct eng_BufferInfo
+typedef struct eng_BufferInfo
 {
 	VkImage image;
 	VkCommandBuffer cmd;
 	VkImageView view;
 	VkFramebuffer fb;
-};
+} eng_BufferInfo;
 
-struct eng_Vulkan
+typedef struct eng_Vulkan
 {
 	VkInstance Instance;
 	VkDevice Device;
@@ -58,29 +58,29 @@ struct eng_Vulkan
 	VkCommandBuffer DrawCmd;
 	VkRenderPass RenderPass;
 	VkQueue Queue;
-	struct eng_BufferInfo* Buffers;
+	eng_BufferInfo* Buffers;
 
 	eng_ArrayDecl(Extensions, const char*);
-};
+} eng_Vulkan;
 
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 
-struct eng_Vulkan* eng_VulkanMalloc(void)
+eng_Vulkan* eng_VulkanMalloc(void)
 {
-	return malloc(sizeof(struct eng_Vulkan));
+	return malloc(sizeof(eng_Vulkan));
 }
 
-bool eng_VulkanInit(struct eng_Vulkan* vulkan)
+bool eng_VulkanInit(eng_Vulkan* vulkan)
 {
-	memset(vulkan, 0, sizeof(struct eng_Vulkan));
+	memset(vulkan, 0, sizeof(eng_Vulkan));
 
 	eng_ArrayInitType(&vulkan->Extensions, const char*);
 
 	return true;
 }
 
-void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly)
+void eng_VulkanFree(eng_Vulkan* vulkan, bool subAllocationsOnly)
 {
 	if (vulkan == NULL)
 	{
@@ -98,12 +98,12 @@ void eng_VulkanFree(struct eng_Vulkan* vulkan, bool subAllocationsOnly)
 
 size_t eng_VulkanGetSizeof(void)
 {
-	return sizeof(struct eng_Vulkan);
+	return sizeof(eng_Vulkan);
 }
 
 ////////////////////////////////////////////////////////////////////////// Configuration API
 
-void eng_VulkanProvideExtensions(struct eng_Vulkan* vulkan, const char** extensions, uint32_t extensionsCount)
+void eng_VulkanProvideExtensions(eng_Vulkan* vulkan, const char** extensions, uint32_t extensionsCount)
 {
 	eng_ArrayResize(&vulkan->Extensions, extensionsCount);
 	for (uint32_t i = 0; i < extensionsCount; ++i)
@@ -113,20 +113,20 @@ void eng_VulkanProvideExtensions(struct eng_Vulkan* vulkan, const char** extensi
 }
 
 
-void eng_VulkanSetRequiresCompute(struct eng_Vulkan* vulkan, bool requiresCompute)
+void eng_VulkanSetRequiresCompute(eng_Vulkan* vulkan, bool requiresCompute)
 {
 }
 
-void eng_VulkanSetRequiresGraphics(struct eng_Vulkan* vulkan, bool requiresGraphics)
+void eng_VulkanSetRequiresGraphics(eng_Vulkan* vulkan, bool requiresGraphics)
 {
 }
 
-void eng_VulkanSetRequiresPresent(struct eng_Vulkan* vulkan, bool requiresPresent)
+void eng_VulkanSetRequiresPresent(eng_Vulkan* vulkan, bool requiresPresent)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////// API
-bool eng_VulkanCreateInstance(struct eng_Vulkan* vulkan)
+bool eng_VulkanCreateInstance(eng_Vulkan* vulkan)
 {
 	VkResult err;
 	{
@@ -160,7 +160,7 @@ bool eng_VulkanCreateInstance(struct eng_Vulkan* vulkan)
 	return true;
 }
 
-bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, uint16_t width, uint16_t height)
+bool eng_VulkanProvideSurface(eng_Vulkan* vulkan, VkSurfaceKHR surface, uint16_t width, uint16_t height)
 {
 	VkResult err;
 	VkPhysicalDevice gpu;
@@ -320,7 +320,7 @@ bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, u
 		assert(!err);
 	}
 
-	vulkan->Buffers = calloc(swapchain_image_count, sizeof(struct eng_BufferInfo));
+	vulkan->Buffers = calloc(swapchain_image_count, sizeof(eng_BufferInfo));
 
 	{
 		err = vkGetSwapchainImagesKHR(vulkan->Device, vulkan->Swapchain, &swapchain_image_count, 0);
@@ -414,12 +414,12 @@ bool eng_VulkanProvideSurface(struct eng_Vulkan* vulkan, VkSurfaceKHR surface, u
 	return true;
 }
 
-VkInstance eng_VulkanGetInstance(struct eng_Vulkan* vulkan)
+VkInstance eng_VulkanGetInstance(eng_Vulkan* vulkan)
 {
 	return vulkan->Instance;
 }
 
-void eng_VulkanUpdate(struct eng_Vulkan* vulkan)
+void eng_VulkanUpdate(eng_Vulkan* vulkan)
 {
 	VkResult err;
 	VkSemaphore present_complete_semaphore;
