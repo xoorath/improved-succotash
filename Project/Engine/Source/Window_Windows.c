@@ -16,13 +16,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct eng_WindowCallback
+typedef struct eng_WindowCallback
 {
 	eng_WindowCallback_t Func;
 	void* UserData;
-};
+} eng_WindowCallback;
 
-struct eng_Window
+typedef struct eng_Window
 {
 	GLFWwindow* Window;
 	bool Closing;
@@ -33,7 +33,7 @@ struct eng_Window
 
 	// callbacks
 	eng_ArrayDecl(OnClose, struct eng_WindowCallback);
-};
+} eng_Window;
 
 bool g_VulkanSupport = false;
 const char** g_VulkanRequiredExtensions = NULL;
@@ -41,11 +41,11 @@ uint32_t g_VulkanRequiredExtensionCount = 0;
 
 void eng_WindowHandleGLFWError(int errorCode, const char* description);
 
-bool eng_WindowSetupValidate(struct eng_Window* window, uint16_t width, uint16_t height, const char* title);
+bool eng_WindowSetupValidate(eng_Window* window, uint16_t width, uint16_t height, const char* title);
 
-void eng_WindowCallbackListBind(struct eng_Array* callbackList, eng_WindowCallback_t func, void* userData);
-void eng_WindowCallbackListUnbind(struct eng_Array* callbackList, eng_WindowCallback_t func);
-void eng_WindowCallbackListExec(struct eng_Array* callbackList);
+void eng_WindowCallbackListBind(eng_Array* callbackList, eng_WindowCallback_t func, void* userData);
+void eng_WindowCallbackListUnbind(eng_Array* callbackList, eng_WindowCallback_t func);
+void eng_WindowCallbackListExec(eng_Array* callbackList);
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 bool eng_WindowGlobalInit(void)
@@ -78,12 +78,12 @@ void eng_WindowGlobalShutdown(void)
 	glfwTerminate();
 }
 
-struct eng_Window* eng_WindowMalloc(void)
+eng_Window* eng_WindowMalloc(void)
 {
-	return malloc(sizeof(struct eng_Window));
+	return malloc(sizeof(eng_Window));
 }
 
-void eng_WindowFree(struct eng_Window* window, bool subAllocationsOnly)
+void eng_WindowFree(eng_Window* window, bool subAllocationsOnly)
 {
 	if (window == NULL)
 	{
@@ -100,15 +100,15 @@ void eng_WindowFree(struct eng_Window* window, bool subAllocationsOnly)
 	}
 }
 
-bool eng_WindowInit(struct eng_Window* window, uint16_t width, uint16_t height, const char* title)
+bool eng_WindowInit(eng_Window* window, uint16_t width, uint16_t height, const char* title)
 {
 	if (!eng_WindowSetupValidate(window, width, height, title))
 	{
 		return false;
 	}
-	memset(window, 0, sizeof(struct eng_Window));
+	memset(window, 0, sizeof(eng_Window));
 
-	eng_ArrayInitType(&window->OnClose, struct eng_WindowCallback);
+	eng_ArrayInitType(&window->OnClose, eng_WindowCallback);
 
 	// hint to GLFW not to create opengl/opengles contexts.
 	if (g_VulkanSupport) {
@@ -122,12 +122,12 @@ bool eng_WindowInit(struct eng_Window* window, uint16_t width, uint16_t height, 
 
 size_t eng_WindowGetSizeof(void)
 {
-	return sizeof(struct eng_Window);
+	return sizeof(eng_Window);
 }
 
 ////////////////////////////////////////////////////////////////////////// Window API
 
-void eng_WindowClose(struct eng_Window* window)
+void eng_WindowClose(eng_Window* window)
 {
 	if (!window->Closing)
 	{
@@ -136,7 +136,7 @@ void eng_WindowClose(struct eng_Window* window)
 	}
 }
 
-void eng_WindowUpdate(struct eng_Window* window)
+void eng_WindowUpdate(eng_Window* window)
 {
 	if (glfwWindowShouldClose(window->Window))
 	{
@@ -148,40 +148,40 @@ void eng_WindowUpdate(struct eng_Window* window)
 	}
 }
 
-const char* eng_WindowGetTitle(struct eng_Window* window)
+const char* eng_WindowGetTitle(eng_Window* window)
 {
 	return window->Title;
 }
 
-uint16_t eng_WindowGetWidth(struct eng_Window* window)
+uint16_t eng_WindowGetWidth(eng_Window* window)
 {
 	return window->Width;
 }
 
-uint16_t eng_WindowGetHeight(struct eng_Window* window)
+uint16_t eng_WindowGetHeight(eng_Window* window)
 {
 	return window->Height;
 }
 
-void eng_WindowSetTitle(struct eng_Window* window, const char* title)
+void eng_WindowSetTitle(eng_Window* window, const char* title)
 {
 	free(window->Title);
 	window->Title = malloc(strlen(title) + 1);
 	strcpy(window->Title, title);
 }
 
-void eng_WindowSetSize(struct eng_Window* window, uint16_t width, uint16_t height)
+void eng_WindowSetSize(eng_Window* window, uint16_t width, uint16_t height)
 {
 	window->Width = width;
 	window->Height = height;
 }
 
-bool eng_WindowSupportsVulkan(struct eng_Window* window)
+bool eng_WindowSupportsVulkan(eng_Window* window)
 {
 	return g_VulkanSupport;
 }
 
-bool eng_WindowBindVulkan(struct eng_Window* window, struct eng_Vulkan* vulkan)
+bool eng_WindowBindVulkan(eng_Window* window, eng_Vulkan* vulkan)
 {
 	if (!eng_Ensure(g_VulkanSupport, "eng_WindowBindVulkan found no vulkan support. Call eng_WindowSupportsVulkan first to check."))
 	{
@@ -209,12 +209,12 @@ bool eng_WindowBindVulkan(struct eng_Window* window, struct eng_Vulkan* vulkan)
 
 ////////////////////////////////////////////////////////////////////////// Callbacks
 
-void eng_OnCloseBind(struct eng_Window* window, eng_WindowCallback_t onClose, void* userData)
+void eng_OnCloseBind(eng_Window* window, eng_WindowCallback_t onClose, void* userData)
 {
 	eng_WindowCallbackListBind(&window->OnClose, onClose, userData);
 }
 
-void eng_OnCloseUnbind(struct eng_Window* window, eng_WindowCallback_t userData)
+void eng_OnCloseUnbind(eng_Window* window, eng_WindowCallback_t userData)
 {
 	eng_WindowCallbackListUnbind(&window->OnClose, userData);
 }
@@ -226,7 +226,7 @@ void eng_WindowHandleGLFWError(int errorCode, const char* description)
 	eng_Err("GLFW Error(%d): \"%s\"\n", errorCode, description);
 }
 
-bool eng_WindowSetupValidate(struct eng_Window* window, uint16_t width, uint16_t height, const char* title)
+bool eng_WindowSetupValidate(eng_Window* window, uint16_t width, uint16_t height, const char* title)
 {
 #if !defined(GAME_FINAL)
 	if (window == NULL)
@@ -254,19 +254,19 @@ bool eng_WindowSetupValidate(struct eng_Window* window, uint16_t width, uint16_t
 	return true;
 }
 
-void eng_WindowCallbackListBind(struct eng_Array* callbackList, eng_WindowCallback_t func, void* UserData)
+void eng_WindowCallbackListBind(eng_Array* callbackList, eng_WindowCallback_t func, void* UserData)
 {
 	eng_ArrayResize(callbackList, callbackList->Count + 1);
-	struct eng_WindowCallback* callback = eng_ArrayPIndexType(callbackList, struct eng_WindowCallback, callbackList->Count-1);
+	eng_WindowCallback* callback = eng_ArrayPIndexType(callbackList, eng_WindowCallback, callbackList->Count-1);
 	callback->Func = func;
 	callback->UserData = UserData;
 }
 
 // TODO: handle callbacks that might be in the list twice.
-void eng_WindowCallbackListUnbind(struct eng_Array* callbackList, eng_WindowCallback_t func)
+void eng_WindowCallbackListUnbind(eng_Array* callbackList, eng_WindowCallback_t func)
 {
 	for (uint32_t i = 0; i < callbackList->Count; ++i) {
-		struct eng_WindowCallback* callback = eng_ArrayPIndexType(callbackList, struct eng_WindowCallback, i);
+		eng_WindowCallback* callback = eng_ArrayPIndexType(callbackList, eng_WindowCallback, i);
 		if (callback->Func == func)
 		{
 			eng_ArrayRemoveLastSwap(callbackList, i);
@@ -275,10 +275,10 @@ void eng_WindowCallbackListUnbind(struct eng_Array* callbackList, eng_WindowCall
 	}
 }
 
-void eng_WindowCallbackListExec(struct eng_Array* callbackList)
+void eng_WindowCallbackListExec(eng_Array* callbackList)
 {
-	struct eng_WindowCallback* begin = eng_ArrayBeginType(callbackList, struct eng_WindowCallback);
-	struct eng_WindowCallback* end = eng_ArrayEndType(callbackList, struct eng_WindowCallback);
+	eng_WindowCallback* begin = eng_ArrayBeginType(callbackList, eng_WindowCallback);
+	eng_WindowCallback* end = eng_ArrayEndType(callbackList, eng_WindowCallback);
 	for (; begin < end; ++begin)
 	{
 		begin->Func(begin->UserData);
