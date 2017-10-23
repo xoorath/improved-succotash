@@ -8,22 +8,22 @@
 
 #include <Engine/Log.h>
 
-struct eng_IniKeyValue
+typedef struct eng_IniKeyValue
 {
 	char* Key;
 	char* Value;
 	char* SourceStart;
 	char* SourceEnd;
-};
+} eng_IniKeyValue;
 
-struct eng_IniSection
+typedef struct eng_IniSection
 {
 	char* SectionHead;
 	uint32_t KeyValuePairCount;
 	struct eng_IniKeyValue* KeyValuePairs;
-};
+} eng_IniSection;
 
-struct eng_IniR
+typedef struct eng_IniR
 {
 	uint32_t FileSize;
 	/**
@@ -37,20 +37,20 @@ struct eng_IniR
 	
 	uint32_t SectionCount;
 	struct eng_IniSection* Sections;
-};
+} eng_IniR;
 
-uint32_t eng_IniRCountSections(struct eng_IniR* ini);
-void eng_IniRInitSections(struct eng_IniR* ini);
+uint32_t eng_IniRCountSections(eng_IniR* ini);
+void eng_IniRInitSections(eng_IniR* ini);
 
-struct eng_IniR* eng_IniRMalloc(void)
+eng_IniR* eng_IniRMalloc(void)
 {
-	return malloc(sizeof(struct eng_IniR));
+	return malloc(sizeof(eng_IniR));
 }
 
-bool eng_IniRInit(struct eng_IniR* ini, const char* path)
+bool eng_IniRInit(eng_IniR* ini, const char* path)
 {
 	{ // temp
-		memset(ini, 0, sizeof(struct eng_IniR));
+		memset(ini, 0, sizeof(eng_IniR));
 		return true;
 	}
 
@@ -117,7 +117,7 @@ bool eng_IniRInit(struct eng_IniR* ini, const char* path)
 	return true;
 }
 
-void eng_IniRFree(struct eng_IniR* ini, bool subAllocationsOnly)
+void eng_IniRFree(eng_IniR* ini, bool subAllocationsOnly)
 {
 	if (ini == NULL)
 	{
@@ -132,12 +132,12 @@ void eng_IniRFree(struct eng_IniR* ini, bool subAllocationsOnly)
 
 size_t eng_IniRGetSizeof(void)
 {
-	return sizeof(struct eng_IniR);
+	return sizeof(eng_IniR);
 }
 
 ////////////////////////////////////////////////////////////////////////// Ini API
 
-const char* eng_IniRRead(struct eng_IniR* ini, const char* section, const char* key)
+const char* eng_IniRRead(eng_IniR* ini, const char* section, const char* key)
 {
 	return NULL;
 }
@@ -234,7 +234,7 @@ bool eng_IniRLineGetVarStr(char* line, char** outVarStart, char** outVarEnd)
 	return false;
 }
 
-uint32_t eng_IniRCountSections(struct eng_IniR* ini)
+uint32_t eng_IniRCountSections(eng_IniR* ini)
 {
 	char* c = ini->FileContents;
 	char* s;
@@ -258,7 +258,7 @@ uint32_t eng_IniRCountSections(struct eng_IniR* ini)
 	return (uint32_t)count;
 }
 
-uint32_t eng_IniRCoutnVars(struct eng_IniR* ini)
+uint32_t eng_IniRCoutnVars(eng_IniR* ini)
 {
 	char* c = ini->FileContents;
 	char* s;
@@ -281,14 +281,14 @@ uint32_t eng_IniRCoutnVars(struct eng_IniR* ini)
 	return (uint32_t)count;
 }
 
-void eng_IniRInitSections(struct eng_IniR* ini)
+void eng_IniRInitSections(eng_IniR* ini)
 {
 	if (ini->SectionCount == 0)
 	{
 		ini->Sections = NULL;
 		return;
 	}
-	ini->Sections = calloc(ini->SectionCount, sizeof(struct eng_IniSection));
+	ini->Sections = calloc(ini->SectionCount, sizeof(eng_IniSection));
 
 	char* c = ini->FileContents;
 	char* s;
@@ -299,7 +299,7 @@ void eng_IniRInitSections(struct eng_IniR* ini)
 		s = &ini->FileContents[i];
 		if (eng_IniRLineGetSectionHead(s, &s, &e))
 		{
-			struct eng_IniSection* section = &ini->Sections[sectionIdx++];
+			eng_IniSection* section = &ini->Sections[sectionIdx++];
 
 		}
 		i += e - s;

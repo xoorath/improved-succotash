@@ -40,7 +40,6 @@ private:
 
 struct eng_Window;
 struct eng_Url;
-struct eng_IniR;
 
 volatile bool ApplicationRunning = true;
 
