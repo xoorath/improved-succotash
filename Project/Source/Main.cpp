@@ -38,8 +38,6 @@ private:
 	size_t CurrentOffset = 0;
 };
 
-struct eng_Url;
-
 volatile bool ApplicationRunning = true;
 
 void OnWindowClose(void*) 

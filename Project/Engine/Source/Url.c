@@ -4,10 +4,10 @@
 
 #include <ThirdParty/Curl/curl.h>
 
-struct eng_Url
+typedef struct eng_Url
 {
 	CURL* curl;
-};
+} eng_Url;
 
 ////////////////////////////////////////////////////////////////////////// Lifecycle
 
@@ -27,12 +27,12 @@ void eng_UrlGlobalShutdown(void)
 	curl_global_cleanup();
 }
 
-struct eng_Url* eng_UrlMalloc(void)
+eng_Url* eng_UrlMalloc(void)
 {
 	return malloc(sizeof(struct eng_Url));
 }
 
-bool eng_UrlInit(struct eng_Url* engUrl, const char* url)
+bool eng_UrlInit(eng_Url* engUrl, const char* url)
 {
 	engUrl->curl = curl_easy_init();
 	if (engUrl->curl == NULL)
@@ -48,7 +48,7 @@ bool eng_UrlInit(struct eng_Url* engUrl, const char* url)
 	return true;
 }
 
-void eng_UrlFree(struct eng_Url* engUrl, bool subAllocationsOnly)
+void eng_UrlFree(eng_Url* engUrl, bool subAllocationsOnly)
 {
 	curl_easy_cleanup(engUrl->curl);
 	if (!subAllocationsOnly)
@@ -62,7 +62,7 @@ size_t eng_UrlGetSizeof(void)
 	return sizeof(struct eng_Url);
 }
 
-bool eng_UrlTestConnection(struct eng_Url* engUrl)
+bool eng_UrlTestConnection(eng_Url* engUrl)
 {
 	CURLcode result = curl_easy_perform(engUrl->curl);
 
@@ -85,7 +85,7 @@ bool eng_UrlTestConnection(struct eng_Url* engUrl)
 
 bool eng_UrlEasyTestConnection(const char* url)
 {
-	struct eng_Url engUrl;
+	eng_Url engUrl;
 	bool success = eng_UrlInit(&engUrl, url) && eng_UrlTestConnection(&engUrl);
 	eng_UrlFree(&engUrl, true);
 	return success;
